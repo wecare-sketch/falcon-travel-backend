@@ -1,0 +1,431 @@
+import { AppDataSource } from "../config/db";
+import { User } from "../entities/user";
+import { Event } from "../entities/event";
+import bcrypt, { genSalt } from "bcryptjs";
+import jwt, { SignOptions } from "jsonwebtoken";
+import { EventParticipant } from "../entities/eventParticipant";
+import { EventType, MemberRole, PaymentStatus } from "../constants/enums";
+import { RequestEventDts } from "../types/event";
+import { JwtPayload } from "../types/request";
+import { InviteToken } from "../entities/inviteToken";
+import { MoreThan } from "typeorm";
+import { EventRequest } from "../entities/eventRequest";
+import { generateSlug } from "../utils/slugify";
+import crypto from "crypto";
+import { UserMedia } from "../entities/userMedia";
+import { mediaUpload } from "../utils/mediaHandler";
+import { Request } from "express";
+import { EventFeedback } from "../entities/eventFeedback";
+import { getIO } from "../config/socket";
+import { Notification } from "../entities/notifications";
+
+const UserRepository = AppDataSource.getRepository(User);
+const EventRepository = AppDataSource.getRepository(Event);
+const InviteRepository = AppDataSource.getRepository(InviteToken);
+const FeedbackRepository = AppDataSource.getRepository(EventFeedback);
+const RequestRepository = AppDataSource.getRepository(EventRequest);
+const MediaRepository = AppDataSource.getRepository(UserMedia);
+const NotificationRepository = AppDataSource.getRepository(Notification);
+
+const EventParticipantRepository =
+  AppDataSource.getRepository(EventParticipant);
+
+const userService = {
+  registerUser: async (
+    email: string,
+    password: string,
+    inviteToken: string
+  ) => {
+    return await userService.handleUserRegistration(
+      email,
+      password,
+      inviteToken
+    );
+  },
+
+  registerWithGoogle: async (email: string, inviteToken: string) => {
+    return await userService.handleUserRegistration(email, null, inviteToken);
+  },
+
+  registerWithApple: async (
+    email: string,
+    sub: string,
+    inviteToken: string
+  ) => {
+    let user = await UserRepository.findOne({ where: { appleSubId: sub } });
+
+    if (!user) {
+      user = UserRepository.create({
+        appleSubId: sub,
+        email: email,
+        fullName: "Apple User",
+      });
+      await UserRepository.save(user);
+    }
+
+    return await userService.handleUserRegistration(email, null, inviteToken);
+  },
+
+  addUserDetails: async (
+    fullName: string,
+    dob: string,
+    phone: string,
+    email: string
+  ) => {
+    const userExists = await userService.findUserWithEmail(email);
+
+    userExists.fullName = fullName;
+    userExists.dateOfBirth = dob;
+    userExists.phoneNumber = phone;
+
+    await UserRepository.save(userExists);
+
+    return { message: "success", data: {} };
+  },
+
+  loginUser: async (email: string, password: string, token?: string) => {
+    const user = await userService.findUserWithEmail(email);
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) throw new Error("Incorrect Password");
+
+    if (token) {
+      await userService.joinEvent(token, email);
+    }
+
+    const payload = {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+    };
+
+    const jwtToken = jwt.sign(
+      payload,
+      process.env.JWT_SECRET_KEY || "MY_SECRET_KEY",
+      {
+        expiresIn: process.env.JWT_EXPIRY || "7d",
+      } as SignOptions
+    );
+    return { message: "success", data: jwtToken };
+  },
+
+  loginWithOAuth: async (user: User, token?: string) => {
+    const payload = { id: user.id, email: user.email, role: user.role };
+    const jwtToken = jwt.sign(
+      payload,
+      process.env.JWT_SECRET_KEY || "MY_SECRET_KEY",
+      {
+        expiresIn: process.env.JWT_EXPIRY || "7d",
+      } as SignOptions
+    );
+
+    if (token) {
+      await userService.joinEvent(token, user.email);
+    }
+
+    return { message: "success", data: jwtToken };
+  },
+
+  requestEvent: async (event: RequestEventDts, email: string) => {
+    const slug = generateSlug(event.eventDetails.clientName);
+
+    const newRequest = RequestRepository.create({
+      eventType: event.eventDetails.eventType,
+      clientName: event.eventDetails.clientName,
+      phoneNumber: event.eventDetails.phoneNumber,
+      pickupDate: event.eventDetails.pickupDate,
+      location: event.eventDetails.location,
+      vehicle: event.vehicleInfo.vehicleName,
+      passengerCount: event.vehicleInfo.numberOfPassengers,
+      hoursReserved: event.vehicleInfo.hoursReserved,
+      createdBy: email,
+      slug: slug,
+    });
+
+    await RequestRepository.save(newRequest);
+
+    const message = `${newRequest.clientName} has requested an event (${newRequest.slug}) for approval.`;
+
+    getIO().to("admin").emit("event_request", {
+      message: message,
+      slug: newRequest.slug,
+      id: newRequest.id,
+      createdAt: newRequest.createdAt,
+      createdBy: newRequest.createdBy,
+    });
+
+    const user = await userService.findUserWithEmail(email);
+
+    const newNotification = NotificationRepository.create({
+      title: "New Event Request",
+      description: message,
+      type: EventType.REQUEST,
+      read: false,
+      user: user,
+      triggeredBy: user,
+    });
+
+    await NotificationRepository.save(newNotification);
+
+    return { message: "success", data: newRequest };
+  },
+
+  handleUserRegistration: async (
+    email: string,
+    password: string | null,
+    inviteToken: string
+  ) => {
+    if (!inviteToken) throw new Error("Invalid Invite Token");
+
+    const userExists = await userService.findUserWithEmail(email);
+    if (userExists) throw new Error("User already exists!");
+
+    const { inviteFound, event } = await userService.checkInvite(inviteToken);
+
+    let hashedPassword = "";
+    if (password) {
+      const salt = await bcrypt.genSalt(10);
+      hashedPassword = await bcrypt.hash(password, salt);
+    }
+
+    const user = UserRepository.create({
+      email,
+      password: hashedPassword,
+    });
+
+    await UserRepository.save(user);
+
+    await userService.addEventParticipant(event, email, inviteFound);
+
+    const payload = { id: user.id, email: user.email, role: user.role };
+    const jwtToken = jwt.sign(
+      payload,
+      process.env.JWT_SECRET_KEY || "MY_SECRET_KEY",
+      {
+        expiresIn: process.env.JWT_EXPIRY || "7d",
+      } as SignOptions
+    );
+
+    return { message: "success", data: jwtToken };
+  },
+
+  resetPassword: async (newPassword: string, user: JwtPayload) => {
+    const userFound = await userService.findUserWithEmail(user.email);
+
+    const salt = await genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+    userFound.password = hashedPassword;
+
+    await UserRepository.save(userFound);
+
+    return { message: "success", data: {} };
+  },
+
+  findOAuthUser: async (provider: "google" | "apple", identifier: string) => {
+    let user: User | null;
+
+    if (provider === "google") {
+      user = await UserRepository.findOne({
+        where: { email: identifier },
+      });
+      if (!user) throw new Error("No Google account registered");
+    } else if (provider === "apple") {
+      user = await UserRepository.findOne({
+        where: { appleSubId: identifier },
+      });
+      if (!user) throw new Error("No Apple account registered");
+    }
+
+    return user!;
+  },
+
+  uploadMedia: async (email: string, req: Request) => {
+    let blob;
+    const folderExists = await MediaRepository.findOne({
+      where: { user: { email: email } },
+    });
+
+    if (!folderExists) {
+      const user = await userService.findUserWithEmail(email);
+      const folderName = crypto.randomBytes(12).toString("hex");
+      const newFolder = MediaRepository.create({
+        blob: folderName,
+        user: user,
+      });
+      blob = newFolder.blob;
+
+      await MediaRepository.save(newFolder);
+    } else {
+      blob = folderExists.blob;
+    }
+
+    return await mediaUpload(blob, req);
+  },
+
+  submitFeedback: async (
+    event: string,
+    ratings: { Q1: number; Q2: number; Q3: number; Q4: number; Q5: number },
+    feedback: { avg: number; description: string },
+    email: string
+  ) => {
+    const eventFound = await EventRepository.findOne({
+      where: { slug: event },
+    });
+
+    if (!eventFound) throw new Error("Event does not exist!");
+
+    const user = await userService.findUserWithEmail(email);
+
+    const newFeedback = FeedbackRepository.create({
+      event: eventFound,
+      user: user,
+      Q1: ratings.Q1,
+      Q2: ratings.Q2,
+      Q3: ratings.Q3,
+      Q4: ratings.Q4,
+      Q5: ratings.Q5,
+      averageRating: feedback.avg,
+      description: feedback.description,
+    });
+
+    await FeedbackRepository.save(newFeedback);
+
+    const message = `${user.fullName} has submitted a feedback to the event (${eventFound.slug}).`;
+
+    getIO().to(`event_${eventFound.slug}`).emit("new_feedback", {
+      message: message,
+      id: newFeedback.id,
+      createdAt: newFeedback.createdAt,
+    });
+
+    const newNotification = NotificationRepository.create({
+      title: "New Feedback",
+      description: message,
+      type: EventType.FEEDBACK,
+      read: false,
+      user: user,
+      triggeredBy: user,
+      event: eventFound,
+    });
+
+    await NotificationRepository.save(newNotification);
+
+    return { message: "success", data: newFeedback };
+  },
+
+  addMusic: async () => {},
+
+  addPersonalMessage: async () => {},
+
+  findUserWithEmail: async (email: string) => {
+    const user = await UserRepository.findOne({ where: { email: email } });
+
+    if (!user) throw new Error("User not found!");
+
+    return user;
+  },
+
+  addEventParticipant: async (
+    event: Event,
+    email: string,
+    inviteFound: InviteToken
+  ) => {
+    const existing = await EventParticipantRepository.findOne({
+      where: { email: email, event: { slug: inviteFound.eventSlug } },
+    });
+
+    let role: MemberRole = MemberRole.COHOST;
+
+    const user = await userService.findUserWithEmail(email);
+
+    let message = `${email} has joined as a ${role} to the event (${event.slug}).`;
+
+    if (!existing) {
+      const isHost = email === event.host;
+
+      const equityAmount = isHost
+        ? event.depositAmount
+        : Math.floor(event.pendingAmount / event.equityDivision);
+
+      role = isHost ? MemberRole.HOST : MemberRole.MEMBER;
+
+      const participant = EventParticipantRepository.create({
+        email: email,
+        event,
+        equityAmount: equityAmount,
+        paymentStatus: PaymentStatus.PENDING,
+        role: role,
+      });
+      await EventParticipantRepository.save(participant);
+
+      message = `${email} has joined as a ${role} to the event (${event.slug}).`;
+
+      getIO().to(`event_${event.slug}`).emit("new_participant", {
+        message: message,
+        role: role,
+        id: participant.id,
+        createdAt: participant.createdAt,
+      });
+    } else {
+      getIO().to(`event_${event.slug}`).emit("new_participant", {
+        message: message,
+        role: role,
+        id: existing!.id,
+        createdAt: existing!.createdAt,
+      });
+    }
+
+    const newNotification = NotificationRepository.create({
+      title: "New Participant",
+      description: message,
+      type: EventType.UPDATE,
+      read: false,
+      user: user,
+      triggeredBy: user,
+      event: event,
+    });
+
+    await NotificationRepository.save(newNotification);
+
+    return;
+  },
+
+  checkInvite: async (inviteToken: string) => {
+    const now = new Date();
+
+    const inviteFound = await InviteRepository.findOne({
+      where: { inviteToken: inviteToken, expiresAt: MoreThan(now) },
+    });
+
+    if (!inviteFound) throw new Error("Invalid or Expired Invite");
+
+    const event = await EventRepository.findOne({
+      where: { slug: inviteFound.eventSlug },
+    });
+    if (!event) throw new Error("Event not found");
+
+    if (inviteFound.registered >= event.passengerCount)
+      throw new Error("Participant Limit Reached");
+
+    inviteFound.registered++;
+
+    await InviteRepository.save(inviteFound);
+
+    return { inviteFound, event };
+  },
+
+  joinEvent: async (token: string, email: string) => {
+    const exists = await EventParticipantRepository.findOne({
+      where: { email: email },
+    });
+
+    if (exists) throw new Error("Participant already exists!");
+
+    const { inviteFound, event } = await userService.checkInvite(token);
+
+    await userService.addEventParticipant(event, email, inviteFound);
+  },
+};
+
+export default userService;
