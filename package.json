@@ -3,15 +3,21 @@
   "version": "1.0.0",
   "description": "Falcon Tour Backend - TypeScript + Express + TypeORM + PostgreSQL",
   "main": "dist/index.js",
+  "type": "commonjs",
   "scripts": {
     "dev": "cross-env nodemon --watch src --ext ts --exec ts-node src/index.ts",
-    "build": "tsc",
-    "start": "node dist/index.js"
+    "dev:vercel": "vercel dev",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "deploy": "vercel",
+    "deploy:prod": "vercel --prod"
+  },
+  "engines": {
+    "node": ">=18 <23"
   },
   "keywords": [],
   "author": "Your Name",
   "license": "ISC",
-  "type": "commonjs",
   "dependencies": {
     "@sendgrid/mail": "^8.1.5",
     "apple-auth": "^1.0.9",
