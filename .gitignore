@@ -36,3 +36,4 @@ yarn.lock
 pnpm-lock.yaml
 .env
 node_modules/
+.vercel

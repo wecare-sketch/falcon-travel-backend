@@ -8,6 +8,7 @@
     "dev": "cross-env nodemon --watch src --ext ts --exec ts-node src/index.ts",
     "dev:vercel": "vercel dev",
     "build": "tsc -p tsconfig.json",
+    "vercel-build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "deploy": "vercel",
     "deploy:prod": "vercel --prod"

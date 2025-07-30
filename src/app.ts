@@ -17,6 +17,16 @@ import { globalLimiter, otpLimiter } from "./middlewares/rateLimiter";
 
 // Build the Express app (do NOT create an http.Server here)
 const app = express();
+/**
+ * Trust proxy safely:
+ * - In prod (Vercel), trust the single hop in front of your app.
+ * - In local dev (node or `vercel dev`), trust only loopback.
+ *
+ * DO NOT use `true` (trust all).
+ */
+const isProd = process.env.NODE_ENV === 'production' || process.env.VERCEL === '1';
+
+app.set('trust proxy', isProd ? 1 : 'loopback');
 
 app.use(express.json());
 app.use(globalLimiter);
