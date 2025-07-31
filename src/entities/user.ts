@@ -10,6 +10,8 @@ import {
 import { Event } from "./event";
 import { UserRole } from "../constants/enums";
 import { Notification } from "./notifications";
+import { Transaction } from "./transactions";
+import { EventParticipant } from "./eventParticipant";
 
 @Entity("users")
 export class User {
@@ -45,6 +47,12 @@ export class User {
 
   @OneToMany(() => Notification, (notif) => notif.user)
   notifications!: Notification[];
+
+  @OneToMany(() => Transaction, (trans) => trans.user)
+  transactions!: Transaction[];
+
+  @OneToMany(() => EventParticipant, (participant) => participant.user)
+  participantHistory?: EventParticipant[];
 
   @Column({ type: "varchar", nullable: true, unique: true })
   appleSubId?: string;

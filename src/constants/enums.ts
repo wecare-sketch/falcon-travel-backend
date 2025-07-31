@@ -4,11 +4,6 @@ export enum MemberRole {
   MEMBER = "member",
 }
 
-export enum PaymentStatus {
-  PAID = "paid",
-  PENDING = "pending",
-}
-
 export enum UserRole {
   ADMIN = "admin",
   USER = "user",
@@ -21,4 +16,19 @@ export enum EventType {
   UPDATE = "update",
   REQUEST = "request",
   FEEDBACK = "feedback",
+}
+
+export enum PaymentStatus {
+  PENDING = "pending",
+  PAID = "paid",
+  FAILED = "failed",
+  DISCREPANCY = "discrepancy",
+}
+
+export enum notificationType {
+  NEW_EVENT = "new_event",
+  UPDATE_EVENT = "update_event",
+  UPDATE_REQUEST = "update_request",
+  EVENT_REQUEST = "event_request",
+  PAYMENT = "payment",
 }

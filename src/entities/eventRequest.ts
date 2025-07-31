@@ -75,6 +75,6 @@ export class EventRequest {
   @Column({ type: "varchar", length: 255, nullable: true })
   cohosts?: string[];
 
-  @OneToMany(() => EventParticipant, (ep) => ep.event, { cascade: true })
-  participants!: EventParticipant[];
+  @Column({ type: "varchar", length: 255, nullable: true })
+  participants?: string[];
 }

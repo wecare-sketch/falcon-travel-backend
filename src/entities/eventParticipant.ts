@@ -8,13 +8,18 @@ import {
 } from "typeorm";
 import { Event } from "./event";
 import { MemberRole, PaymentStatus } from "../constants/enums";
+import { User } from "./user";
+import { EventRequest } from "./eventRequest";
 
 @Entity("event_participants")
 export class EventParticipant {
   @PrimaryGeneratedColumn()
   id!: number;
 
-  @Column({ type: "varchar", length: 255, unique: true })
+  @ManyToOne(() => User, (user) => user.participantHistory)
+  user?: User;
+
+  @Column({ type: "varchar", length: 255 })
   email!: string;
 
   @Column({ type: "int" })
@@ -46,5 +51,5 @@ export class EventParticipant {
   @ManyToOne(() => Event, (event) => event.participants, {
     onDelete: "CASCADE",
   })
-  event!: Event;
+  event?: Event;
 }

@@ -8,6 +8,7 @@ import {
 import { User } from "./user";
 import { EventType } from "../constants/enums";
 import { Event } from "./event";
+import { EventRequest } from "./eventRequest";
 
 @Entity("notifications")
 export class Notification {
@@ -30,7 +31,10 @@ export class Notification {
   user!: User;
 
   @ManyToOne(() => Event, (event) => event.notifications, { nullable: true })
-  event?: Event;
+  event!: Event;
+
+  @ManyToOne(() => EventRequest, { nullable: true })
+  request?: EventRequest;
 
   @ManyToOne(() => User)
   triggeredBy?: User;

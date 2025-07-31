@@ -51,11 +51,12 @@ export const joinEvent = errorHandler(
 export const requestEvent = errorHandler(
   async (req: AuthenticatedRequest, res: Response) => {
     const user = req.user!;
-    const { eventDetails, vehicleInfo } = req.body as RequestEventDts;
+    const { eventDetails, vehicleInfo, cohosts } = req.body as RequestEventDts;
     const result = await userService.requestEvent(
       {
         eventDetails,
         vehicleInfo,
+        cohosts,
       },
       user.email
     );

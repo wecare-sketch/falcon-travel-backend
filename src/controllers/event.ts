@@ -24,14 +24,13 @@ export const addEvent = errorHandler(
 
 export const approveRequest = errorHandler(
   async (req: AuthenticatedRequest, res: Response) => {
-    const { totalAmount, pendingAmount, equityDivision, cohosts } =
+    const { totalAmount, pendingAmount, equityDivision } =
       req.body as ApproveRequestDts;
     const { event } = req.params;
 
     const result = await eventService.approveRequest(
       { totalAmount, pendingAmount, equityDivision },
-      event,
-      cohosts
+      event
     );
     return res.json(result);
   }

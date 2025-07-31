@@ -1,21 +1,23 @@
 import { AppDataSource } from "../config/db";
 import { Event } from "../entities/event";
-import {
-  AddEventDts,
-  ApproveRequestDts,
-  EditEventDts,
-  PaymentDetails,
-} from "../types/event";
+import { AddEventDts, EditEventDts, PaymentDetails } from "../types/event";
 import { generateSlug } from "../utils/slugify";
 import { EventParticipant } from "../entities/eventParticipant";
-import { EventType, MemberRole, PaymentStatus } from "../constants/enums";
+import {
+  EventType,
+  MemberRole,
+  notificationType,
+  PaymentStatus,
+} from "../constants/enums";
 import { sendInvite } from "../utils/sendMail";
 import { InviteToken } from "../entities/inviteToken";
 import { nanoid } from "nanoid";
 import { EventRequest } from "../entities/eventRequest";
 import userService from "./user";
 import { Notification } from "../entities/notifications";
-import { getIO } from "../config/socket";
+import { User } from "../entities/user";
+import notificationService from "./notification";
+import { NotificationInputDts } from "../types/notification";
 
 const RequestRepository = AppDataSource.getRepository(EventRequest);
 const NotificationRepository = AppDataSource.getRepository(Notification);
@@ -23,6 +25,8 @@ const EventRepository = AppDataSource.getRepository(Event);
 const InviteTokenRepository = AppDataSource.getRepository(InviteToken);
 const EventParticipantRepository =
   AppDataSource.getRepository(EventParticipant);
+
+const UserRepository = AppDataSource.getRepository(User);
 
 const eventService = {
   addEvent: async (event: AddEventDts) => {
@@ -67,9 +71,9 @@ const eventService = {
 
     await EventRepository.save(eventFound);
 
-    const cohostParticipants = cohosts.map((user) =>
+    const cohostParticipants = cohosts.map((email) =>
       EventParticipantRepository.create({
-        email: user,
+        email: email,
         event: eventFound,
         equityAmount: Math.floor(
           eventFound.pendingAmount / eventFound.equityDivision
@@ -95,33 +99,10 @@ const eventService = {
 
     await sendInvite(host, `${process.env.CLIENT_URL}/${inviteToken}`);
 
-    const message = `A New Event (${eventFound.slug}) has been created.`;
-
-    getIO().to(`event_${eventFound.slug}`).emit("new_event", {
-      message: message,
-      slug: eventFound.slug,
-      id: eventFound.id,
-      createdAt: eventFound.createdAt,
-    });
-
-    const newNotification = NotificationRepository.create({
-      title: "New Event",
-      description: message,
-      type: EventType.MESSAGE,
-      read: false,
-      event: eventFound,
-    });
-
-    await NotificationRepository.save(newNotification);
-
     return { message: "success", data: {} };
   },
 
-  approveRequest: async (
-    paymentDetails: PaymentDetails,
-    event: string,
-    cohosts: string[]
-  ) => {
+  approveRequest: async (paymentDetails: PaymentDetails, event: string) => {
     const requestFound = await RequestRepository.findOne({
       where: { slug: event },
     });
@@ -152,21 +133,30 @@ const eventService = {
 
     await EventRepository.save(newEvent);
 
-    const cohostParticipants = cohosts.map((user) =>
-      EventParticipantRepository.create({
-        email: user,
-        event: newEvent,
-        equityAmount: Math.floor(
-          newEvent.pendingAmount / newEvent.equityDivision
-        ),
-        paymentStatus: PaymentStatus.PENDING,
-        role: MemberRole.COHOST,
-      })
+    const notification = {
+      emit_event: notificationType.NEW_EVENT,
+      message: `A New Event (${newEvent.slug}) has been created.`,
+      title: "New Event",
+      eventType: EventType.UPDATE,
+      request: requestFound,
+      metadata: {
+        slug: newEvent.slug,
+        id: newEvent.id,
+        createdAt: newEvent.createdAt,
+      },
+    } as NotificationInputDts;
+
+    const recipient = await userService.findUserWithEmail(
+      requestFound.createdBy
     );
 
-    await EventParticipantRepository.save([...cohostParticipants]);
+    await notificationService.send(notification, [recipient]);
 
-    await eventService.createEvent(requestFound.createdBy, cohosts, event);
+    await eventService.createEvent(
+      requestFound.createdBy,
+      requestFound.cohosts || [],
+      event
+    );
 
     await RequestRepository.softDelete({ slug: event });
 
@@ -212,68 +202,81 @@ const eventService = {
 
     const newEvent = await EventRepository.save(eventFound);
 
-    const message = `The Event (${newEvent.slug}) has been updated.`;
-
-    getIO().to(`event_${newEvent.slug}`).emit("update_event", {
-      message: message,
-      slug: newEvent.slug,
-      id: newEvent.id,
-      createdAt: newEvent.createdAt,
-    });
-
-    const newNotification = NotificationRepository.create({
+    const notification = {
+      message: `The Event (${newEvent.slug}) has been updated.`,
+      emit_event: notificationType.UPDATE_EVENT,
       title: "Event Updated",
-      description: message,
-      type: EventType.UPDATE,
-      read: false,
+      metadata: {
+        slug: newEvent.slug,
+        id: newEvent.id,
+        createdAt: newEvent.createdAt,
+      },
+      eventType: EventType.UPDATE,
       event: newEvent,
-    });
+    } as NotificationInputDts;
 
-    await NotificationRepository.save(newNotification);
+    const participants = await eventService.getParticipantsAsUsers(
+      newEvent.slug
+    );
+
+    if (participants) {
+      notificationService.send(notification, participants);
+    }
 
     return { message: "success", data: newEvent };
   },
 
   editRequest: async (eventObject: EditEventDts) => {
-    const eventFound = await RequestRepository.findOne({
+    const requestFound = await RequestRepository.findOne({
       where: { slug: eventObject.event },
     });
 
-    if (!eventFound) {
-      throw new Error("Event not Found!");
+    if (!requestFound) {
+      throw new Error("Request was not Found!");
     }
 
-    eventFound.eventType = eventObject.eventDetails.eventType;
-    eventFound.clientName = eventObject.eventDetails.clientName;
-    eventFound.phoneNumber = eventObject.eventDetails.phoneNumber;
-    eventFound.pickupDate = eventObject.eventDetails.pickupDate;
-    eventFound.location = eventObject.eventDetails.location;
-    eventFound.vehicle = eventObject.vehicleInfo.vehicleName;
-    eventFound.passengerCount = eventObject.vehicleInfo.numberOfPassengers;
-    eventFound.hoursReserved = eventObject.vehicleInfo.hoursReserved;
+    requestFound.eventType = eventObject.eventDetails.eventType;
+    requestFound.clientName = eventObject.eventDetails.clientName;
+    requestFound.phoneNumber = eventObject.eventDetails.phoneNumber;
+    requestFound.pickupDate = eventObject.eventDetails.pickupDate;
+    requestFound.location = eventObject.eventDetails.location;
+    requestFound.vehicle = eventObject.vehicleInfo.vehicleName;
+    requestFound.passengerCount = eventObject.vehicleInfo.numberOfPassengers;
+    requestFound.hoursReserved = eventObject.vehicleInfo.hoursReserved;
+    requestFound.participants = eventObject.participants ?? [
+      requestFound.createdBy,
+    ];
 
-    const newEvent = await RequestRepository.save(eventFound);
+    const newRequest = await RequestRepository.save(requestFound);
 
-    const message = `The Request (${newEvent.slug}) has been updated.`;
+    const notification = {
+      message: `The Request (${newRequest.slug}) has been updated.`,
+      emit_event: notificationType.UPDATE_REQUEST,
+      title: "Event Updated",
+      metadata: {
+        slug: newRequest.slug,
+        id: newRequest.id,
+        createdAt: newRequest.createdAt,
+      },
+      eventType: EventType.UPDATE,
+      request: newRequest,
+    } as NotificationInputDts;
 
-    getIO().to(`event_${newEvent.slug}`).emit("update_request", {
-      message: message,
-      slug: newEvent.slug,
-      id: newEvent.id,
-      createdAt: newEvent.createdAt,
-    });
+    const recipients = (
+      await Promise.all(
+        requestFound.participants.map(async (email) => {
+          const userFound = await UserRepository.findOne({
+            where: { email: email },
+          });
 
-    const newNotification = NotificationRepository.create({
-      title: "Request Updated",
-      description: message,
-      type: EventType.UPDATE,
-      read: false,
-      event: newEvent,
-    });
+          return userFound;
+        })
+      )
+    ).filter((user): user is User => !!user);
 
-    await NotificationRepository.save(newNotification);
+    await notificationService.send(notification, recipients);
 
-    return { message: "success", data: newEvent };
+    return { message: "success", data: newRequest };
   },
 
   getEvents: async ({
@@ -371,6 +374,29 @@ const eventService = {
         requests: requests,
       },
     };
+  },
+
+  getEventBySlug: async (slug: string) => {
+    const event = await EventRepository.findOne({
+      where: { slug: slug },
+      relations: ["participants", "participants.user"],
+    });
+
+    if (!event) throw new Error("Event not found!");
+
+    return event;
+  },
+
+  getParticipantsAsUsers: async (slug: string): Promise<User[]> => {
+    const participants = (await eventService.getEventBySlug(slug)).participants;
+
+    const users = participants
+      ?.map((p) => {
+        return p.user;
+      })
+      .filter((u): u is User => !!u);
+
+    return users || [];
   },
 };
 

@@ -8,6 +8,8 @@ import { EventRequest } from "../entities/eventRequest";
 import { UserMedia } from "../entities/userMedia";
 import { EventFeedback } from "../entities/eventFeedback";
 import { Notification } from "../entities/notifications";
+import { Transaction } from "../entities/transactions";
+
 const isUsingUrl = !!process.env.DATABASE_URL;
 
 export const AppDataSource = new DataSource({
@@ -36,9 +38,8 @@ export const AppDataSource = new DataSource({
     UserMedia,
     EventFeedback,
     Notification,
+    Transaction,
   ],
   migrations: [],
   subscribers: [],
 });
-
-

@@ -6,6 +6,7 @@ export interface AddEventDts {
 
 export interface EditEventDts extends AddEventDts {
   event: string;
+  participants?: string[];
 }
 
 export interface CreateEventDts {
@@ -17,11 +18,10 @@ export interface CreateEventDts {
 export interface RequestEventDts {
   eventDetails: EventDetails;
   vehicleInfo: VehicleInfo;
-}
-
-export interface ApproveRequestDts extends PaymentDetails {
   cohosts: string[];
 }
+
+export interface ApproveRequestDts extends PaymentDetails {}
 
 interface EventDetails {
   eventType: string;

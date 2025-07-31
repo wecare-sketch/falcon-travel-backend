@@ -30,18 +30,27 @@ export const initiateSocket = async (server: HttpServer) => {
     const user = socket.data.user;
     console.log(`User connected (${socket.id}): ${user.email || user.id}`);
 
-    socket.on("join_event", (eventSlug: string) => {
-      socket.join(`event_${eventSlug}`);
-      console.log(
-        `User ${user.email || user.id} joined room: event_${eventSlug}`
-      );
-    });
+    socket.join(`user_${user.email}`);
 
-    socket.on("join_admin", () => {
-      if (user.role === "ADMIN") {
-        socket.join("admin");
-      }
-    });
+    // socket.on("join_event", (eventSlug: string) => {
+    //   socket.join(`event_${eventSlug}`);
+    //   console.log(
+    //     `User ${user.email || user.id} joined room: event_${eventSlug}`
+    //   );
+    // });
+
+    // socket.on("join_request", (eventSlug: string) => {
+    //   socket.join(`request_${eventSlug}`);
+    //   console.log(
+    //     `User ${user.email || user.id} joined room: event_${eventSlug}`
+    //   );
+    // });
+
+    // socket.on("join_admin", () => {
+    //   if (user.role === "ADMIN") {
+    //     socket.join("admin");
+    //   }
+    // });
 
     socket.on("disconnect", () => {
       console.log(`User disconnected: ${user.email || socket.id}`);

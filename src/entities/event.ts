@@ -10,6 +10,7 @@ import { EventParticipant } from "./eventParticipant";
 import { PaymentStatus } from "../constants/enums";
 import { EventFeedback } from "./eventFeedback";
 import { Notification } from "./notifications";
+import { Transaction } from "./transactions";
 
 @Entity("events")
 export class Event {
@@ -71,11 +72,14 @@ export class Event {
   cohosts?: string[];
 
   @OneToMany(() => EventParticipant, (ep) => ep.event, { cascade: true })
-  participants!: EventParticipant[];
+  participants?: EventParticipant[];
 
   @OneToMany(() => EventFeedback, (feedback) => feedback.event)
   feedbacks!: EventFeedback[];
 
   @OneToMany(() => Notification, (notif) => notif.event)
   notifications?: Notification[];
+
+  @OneToMany(() => Transaction, (trans) => trans.event)
+  transactions!: Transaction[];
 }
