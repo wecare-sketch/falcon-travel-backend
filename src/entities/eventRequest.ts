@@ -6,17 +6,26 @@ import {
   UpdateDateColumn,
   OneToMany,
   DeleteDateColumn,
+  ManyToOne,
+  JoinColumn,
 } from "typeorm";
 import { EventParticipant } from "./eventParticipant";
 import { PaymentStatus } from "../constants/enums";
+import { User } from "./user";
 
-@Entity("eventrequests")
+@Entity("event_requests")
 export class EventRequest {
-  @PrimaryGeneratedColumn()
-  id!: number;
+  @PrimaryGeneratedColumn("uuid")
+  id!: string;
 
   @Column({ type: "varchar", unique: true })
   slug!: string;
+
+  @Column({ type: "varchar", length: 255 })
+  imageUrl!: string;
+
+  @Column({ type: "varchar", length: 255 })
+  name!: string;
 
   @Column({ type: "varchar", length: 255 })
   eventType!: string;
@@ -57,8 +66,9 @@ export class EventRequest {
   @Column({ type: "enum", enum: PaymentStatus, default: PaymentStatus.PENDING })
   status!: PaymentStatus;
 
-  @Column({ type: "varchar", length: 255 })
-  createdBy!: string;
+  @ManyToOne(() => User, (user) => user.eventRequests)
+  @JoinColumn({ name: "userId" })
+  user!: User;
 
   @CreateDateColumn()
   createdAt!: Date;

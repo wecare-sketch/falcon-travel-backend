@@ -24,6 +24,7 @@ export interface RequestEventDts {
 export interface ApproveRequestDts extends PaymentDetails {}
 
 interface EventDetails {
+  name: string;
   eventType: string;
   clientName: string;
   phoneNumber: string;

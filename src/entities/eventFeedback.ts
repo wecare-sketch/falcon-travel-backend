@@ -13,10 +13,11 @@ import { Event } from "./event";
 
 @Entity("event_feedback")
 export class EventFeedback {
-  @PrimaryGeneratedColumn("uuid")
-  id!: string;
+  @PrimaryGeneratedColumn()
+  id!: number;
 
   @ManyToOne(() => Event, (event) => event.feedbacks, { onDelete: "CASCADE" })
+  @JoinColumn({ name: "eventId" })
   event!: Event;
 
   @Column({ type: "int", default: 0, nullable: true })
@@ -41,7 +42,7 @@ export class EventFeedback {
   averageRating!: number;
 
   @OneToOne(() => User)
-  @JoinColumn()
+  @JoinColumn({ name: "userId" })
   user!: User;
 
   @CreateDateColumn()

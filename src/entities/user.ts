@@ -12,11 +12,13 @@ import { UserRole } from "../constants/enums";
 import { Notification } from "./notifications";
 import { Transaction } from "./transactions";
 import { EventParticipant } from "./eventParticipant";
+import { EventMedia } from "./eventMedia";
+import { EventRequest } from "./eventRequest";
 
 @Entity("users")
 export class User {
-  @PrimaryGeneratedColumn()
-  id!: number;
+  @PrimaryGeneratedColumn("uuid")
+  id!: string;
 
   @Column({ type: "varchar", length: 255, nullable: true })
   fullName?: string;
@@ -53,6 +55,12 @@ export class User {
 
   @OneToMany(() => EventParticipant, (participant) => participant.user)
   participantHistory?: EventParticipant[];
+
+  @OneToMany(() => EventRequest, (request) => request.user)
+  eventRequests?: EventRequest[];
+
+  @OneToMany(() => EventMedia, (media) => media.event)
+  media?: EventMedia[];
 
   @Column({ type: "varchar", nullable: true, unique: true })
   appleSubId?: string;

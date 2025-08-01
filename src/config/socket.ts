@@ -1,4 +1,3 @@
-// socket.ts
 import { Server as IOServer } from "socket.io";
 import { Server as HttpServer } from "http";
 import jwt from "jsonwebtoken";
@@ -8,8 +7,10 @@ let io: IOServer;
 export const initiateSocket = async (server: HttpServer) => {
   io = new IOServer(server, {
     cors: {
-      origin: "*",
-      methods: ["GET", "POST"],
+      origin: (origin, callback) => {
+        callback(null, origin || "*");
+      },
+      methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     },
   });
 

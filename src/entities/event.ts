@@ -7,18 +7,26 @@ import {
   UpdateDateColumn,
 } from "typeorm";
 import { EventParticipant } from "./eventParticipant";
-import { PaymentStatus } from "../constants/enums";
+import { EventStatus, PaymentStatus } from "../constants/enums";
 import { EventFeedback } from "./eventFeedback";
 import { Notification } from "./notifications";
 import { Transaction } from "./transactions";
+import { EventMessage } from "./eventMessage";
+import { EventMedia } from "./eventMedia";
 
 @Entity("events")
 export class Event {
-  @PrimaryGeneratedColumn()
-  id!: number;
+  @PrimaryGeneratedColumn("uuid")
+  id!: string;
 
   @Column({ type: "varchar", unique: true })
   slug!: string;
+
+  @Column({ type: "varchar", length: 255 })
+  name!: string;
+
+  @Column({ type: "varchar", length: 255 })
+  imageUrl!: string;
 
   @Column({ type: "varchar", length: 255 })
   eventType!: string;
@@ -56,14 +64,20 @@ export class Event {
   @Column({ type: "int" })
   equityDivision!: number;
 
+  @Column({ type: "enum", enum: EventStatus, default: EventStatus.PENDING })
+  eventStatus!: string;
+
   @Column({ type: "enum", enum: PaymentStatus, default: PaymentStatus.PENDING })
-  status!: PaymentStatus;
+  paymentStatus!: PaymentStatus;
 
   @CreateDateColumn()
   createdAt!: Date;
 
   @UpdateDateColumn()
   updatedAt!: Date;
+
+  @Column({ type: "timestamp" })
+  expiresAt?: Date;
 
   @Column({ type: "varchar", length: 255, nullable: true })
   host?: string;
@@ -79,6 +93,12 @@ export class Event {
 
   @OneToMany(() => Notification, (notif) => notif.event)
   notifications?: Notification[];
+
+  @OneToMany(() => EventMedia, (media) => media.event)
+  media?: EventMedia[];
+
+  @OneToMany(() => EventMessage, (message) => message.event)
+  messages?: EventMessage[];
 
   @OneToMany(() => Transaction, (trans) => trans.event)
   transactions!: Transaction[];

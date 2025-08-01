@@ -17,6 +17,7 @@ export async function verifyGoogleToken(idToken: string): Promise<string> {
 
     return payload.email;
   } catch (error) {
+    console.error("Google token verification error:", error);
     throw new Error("Failed to verify Google token");
   }
 }

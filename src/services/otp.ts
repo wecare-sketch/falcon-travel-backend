@@ -102,11 +102,9 @@ const otpService = {
 
     const expiresIn = process.env.REQUEST_EXPIRY || "5m";
 
-    const token = jwt.sign(
-      payload,
-      process.env.RESET_SECRET || "MY_SECRET_KEY",
-      { expiresIn } as SignOptions
-    );
+    const token = jwt.sign(payload, process.env.RESET_SECRET!, {
+      expiresIn,
+    } as SignOptions);
 
     return { message: "OTP verified successfully", data: { token: token } };
   },

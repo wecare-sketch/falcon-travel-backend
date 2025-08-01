@@ -8,8 +8,8 @@ import {
 
 @Entity("invite_tokens")
 export class InviteToken {
-  @PrimaryGeneratedColumn()
-  id!: number;
+  @PrimaryGeneratedColumn("uuid")
+  id!: string;
 
   @Column({ type: "varchar", length: 255, unique: true })
   inviteToken!: string;

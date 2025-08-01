@@ -25,6 +25,14 @@ export enum PaymentStatus {
   DISCREPANCY = "discrepancy",
 }
 
+export enum EventStatus {
+  PENDING = "pending",
+  FINISHED = "finished",
+  EXPIRED = "expired",
+  STARTED = "started",
+  DISCREPANCY = "discrepancy",
+}
+
 export enum notificationType {
   NEW_EVENT = "new_event",
   UPDATE_EVENT = "update_event",

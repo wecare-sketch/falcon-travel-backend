@@ -5,33 +5,36 @@ import bcrypt, { genSalt } from "bcryptjs";
 import jwt, { SignOptions } from "jsonwebtoken";
 import { EventParticipant } from "../entities/eventParticipant";
 import {
+  EventStatus,
   EventType,
   MemberRole,
   notificationType,
   PaymentStatus,
 } from "../constants/enums";
 import { RequestEventDts } from "../types/event";
-import { JwtPayload } from "../types/request";
+import { AuthenticatedRequest, JwtPayload } from "../types/request";
 import { InviteToken } from "../entities/inviteToken";
 import { MoreThan } from "typeorm";
 import { EventRequest } from "../entities/eventRequest";
 import { generateSlug } from "../utils/slugify";
-import crypto from "crypto";
-import { UserMedia } from "../entities/userMedia";
-import { mediaUpload } from "../utils/mediaHandler";
+import { EventMedia } from "../entities/eventMedia";
+import { mediaHandler } from "../utils/mediaHandler";
 import { Request } from "express";
 import { EventFeedback } from "../entities/eventFeedback";
 import { getIO } from "../config/socket";
 import { Notification } from "../entities/notifications";
 import notificationService from "./notification";
 import { NotificationInputDts } from "../types/notification";
+import eventService from "./event";
+import { EventMessage } from "../entities/eventMessage";
 
 const UserRepository = AppDataSource.getRepository(User);
 const EventRepository = AppDataSource.getRepository(Event);
 const InviteRepository = AppDataSource.getRepository(InviteToken);
 const FeedbackRepository = AppDataSource.getRepository(EventFeedback);
 const RequestRepository = AppDataSource.getRepository(EventRequest);
-const MediaRepository = AppDataSource.getRepository(UserMedia);
+const MediaRepository = AppDataSource.getRepository(EventMedia);
+const MessageRepository = AppDataSource.getRepository(EventMessage);
 const NotificationRepository = AppDataSource.getRepository(Notification);
 
 const EventParticipantRepository =
@@ -106,25 +109,17 @@ const userService = {
       role: user.role,
     };
 
-    const jwtToken = jwt.sign(
-      payload,
-      process.env.JWT_SECRET_KEY || "MY_SECRET_KEY",
-      {
-        expiresIn: process.env.JWT_EXPIRY || "7d",
-      } as SignOptions
-    );
+    const jwtToken = jwt.sign(payload, process.env.JWT_SECRET_KEY!, {
+      expiresIn: process.env.JWT_EXPIRY || "7d",
+    } as SignOptions);
     return { message: "success", data: jwtToken };
   },
 
   loginWithOAuth: async (user: User, token?: string) => {
     const payload = { id: user.id, email: user.email, role: user.role };
-    const jwtToken = jwt.sign(
-      payload,
-      process.env.JWT_SECRET_KEY || "MY_SECRET_KEY",
-      {
-        expiresIn: process.env.JWT_EXPIRY || "7d",
-      } as SignOptions
-    );
+    const jwtToken = jwt.sign(payload, process.env.JWT_SECRET_KEY!, {
+      expiresIn: process.env.JWT_EXPIRY || "7d",
+    } as SignOptions);
 
     if (token) {
       await userService.joinEvent(token, user.email);
@@ -133,10 +128,23 @@ const userService = {
     return { message: "success", data: jwtToken };
   },
 
-  requestEvent: async (event: RequestEventDts, email: string) => {
+  requestEvent: async (
+    event: RequestEventDts,
+    email: string,
+    req: AuthenticatedRequest
+  ) => {
     const slug = generateSlug(event.eventDetails.clientName);
 
+    const user = await userService.findUserWithEmail(email);
+
+    const imageURL = await mediaHandler(req, email, slug, {
+      resource_type: "image",
+      allowed_formats: ["jpg", "jpeg", "png", "webp"],
+    });
+
     const newRequest = RequestRepository.create({
+      imageUrl: imageURL[0],
+      name: event.eventDetails.name,
       eventType: event.eventDetails.eventType,
       clientName: event.eventDetails.clientName,
       phoneNumber: event.eventDetails.phoneNumber,
@@ -148,7 +156,7 @@ const userService = {
       host: email,
       cohosts: event.cohosts,
       participants: [email, ...event.cohosts],
-      createdBy: email,
+      user: user,
       slug: slug,
     });
 
@@ -162,7 +170,7 @@ const userService = {
         slug: newRequest.slug,
         id: newRequest.id,
         createdAt: newRequest.createdAt,
-        createdBy: newRequest.createdBy,
+        createdBy: newRequest.user.email,
       },
       eventType: EventType.REQUEST,
       request: newRequest,
@@ -207,13 +215,9 @@ const userService = {
 
     const payload = { id: user.id, email: user.email, role: user.role };
 
-    const jwtToken = jwt.sign(
-      payload,
-      process.env.JWT_SECRET_KEY || "MY_SECRET_KEY",
-      {
-        expiresIn: process.env.JWT_EXPIRY || "7d",
-      } as SignOptions
-    );
+    const jwtToken = jwt.sign(payload, process.env.JWT_SECRET_KEY!, {
+      expiresIn: process.env.JWT_EXPIRY || "7d",
+    } as SignOptions);
 
     return { message: "success", data: jwtToken };
   },
@@ -249,27 +253,23 @@ const userService = {
     return user!;
   },
 
-  uploadMedia: async (email: string, req: Request) => {
-    let blob;
-    const folderExists = await MediaRepository.findOne({
-      where: { user: { email: email } },
-    });
+  uploadMedia: async (email: string, eventSlug: string, req: Request) => {
+    const user = await userService.findUserWithEmail(email);
+    const event = await eventService.getEventBySlug(eventSlug);
 
-    if (!folderExists) {
-      const user = await userService.findUserWithEmail(email);
-      const folderName = crypto.randomBytes(12).toString("hex");
-      const newFolder = MediaRepository.create({
-        blob: folderName,
-        user: user,
-      });
-      blob = newFolder.blob;
-
-      await MediaRepository.save(newFolder);
-    } else {
-      blob = folderExists.blob;
+    if (event.eventStatus !== EventStatus.FINISHED) {
+      throw new Error("Cannot Add Media to this event yet!");
     }
 
-    return await mediaUpload(blob, req);
+    const uploadedUrls = await mediaHandler(req, user.email, event.slug);
+
+    const mediaEntries = uploadedUrls.map((url) =>
+      MediaRepository.create({ url, user, event })
+    );
+
+    await MediaRepository.save(mediaEntries);
+
+    return { message: "success", data: uploadedUrls };
   },
 
   submitFeedback: async (
@@ -283,6 +283,10 @@ const userService = {
     });
 
     if (!eventFound) throw new Error("Event does not exist!");
+
+    if (eventFound.eventStatus !== EventStatus.FINISHED) {
+      throw new Error("Cannot Add Feedback to this event yet!");
+    }
 
     const user = await userService.findUserWithEmail(email);
 
@@ -323,12 +327,35 @@ const userService = {
     return { message: "success", data: newFeedback };
   },
 
-  addMusic: async () => {},
+  addMusic: async () => {}, // In Progress
 
-  addPersonalMessage: async () => {},
+  addPersonalMessage: async (
+    email: string,
+    eventSlug: string,
+    message: string
+  ) => {
+    const user = await userService.findUserWithEmail(email);
+    const event = await eventService.getEventBySlug(eventSlug);
+
+    const newMessage = MessageRepository.create({
+      message: message,
+      user: user,
+      event: event,
+    });
+
+    await MessageRepository.save(newMessage);
+  },
 
   findUserWithEmail: async (email: string) => {
     const user = await UserRepository.findOne({ where: { email: email } });
+
+    if (!user) throw new Error("User not found!");
+
+    return user;
+  },
+
+  findUserWithId: async (userId: string) => {
+    const user = await UserRepository.findOne({ where: { id: userId } });
 
     if (!user) throw new Error("User not found!");
 

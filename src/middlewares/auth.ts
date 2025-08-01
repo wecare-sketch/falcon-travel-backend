@@ -17,7 +17,7 @@ export function authenticateToken(
   try {
     const decoded = jwt.verify(
       token,
-      process.env.JWT_SECRET_KEY || "MY_SECRET_KEY"
+      process.env.JWT_SECRET_KEY!
     ) as JwtPayload;
 
     req.user = decoded;

@@ -20,6 +20,22 @@ export const addDetails = errorHandler(
   }
 );
 
+export const addMessage = errorHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const user = req.user!;
+    const { message } = req.body;
+
+    const { event } = req.params;
+
+    const result = await userService.addPersonalMessage(
+      user.email,
+      event,
+      message
+    );
+    return res.json(result);
+  }
+);
+
 export const submitFeedback = errorHandler(
   async (req: AuthenticatedRequest, res: Response) => {
     const user = req.user!;
@@ -58,7 +74,8 @@ export const requestEvent = errorHandler(
         vehicleInfo,
         cohosts,
       },
-      user.email
+      user.email,
+      req
     );
 
     return res.json(result);
@@ -73,9 +90,16 @@ export const getEvents = errorHandler(
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
 
-    const email = user.email;
+    const userId = user.id as string;
 
-    const result = await eventService.getEvents({ user: email, page, limit });
+    const eventId = req.query.eventId as string | undefined;
+
+    const result = await eventService.getEvents({
+      userId,
+      page,
+      limit,
+      eventId,
+    });
     return res.json(result);
   }
 );
@@ -88,10 +112,10 @@ export const getNotifications = errorHandler(
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
 
-    const email = user.email;
+    const userId = user.id;
 
     const result = await eventService.getNotifications({
-      user: email,
+      userId,
       page,
       limit,
     });
@@ -114,8 +138,9 @@ export const resetPassword = errorHandler(
 export const uploadMedia = errorHandler(
   async (req: AuthenticatedRequest, res: Response) => {
     const user = req.user!;
+    const { event } = req.params;
 
-    const result = await userService.uploadMedia(user.email, req);
+    const result = await userService.uploadMedia(user.email, event, req);
     return res.json(result);
   }
 );

@@ -1,3 +1,6 @@
+
+import * as dotenv from "dotenv";
+dotenv.config(); // ✅ this must come before using any env variables
 import { DataSource } from "typeorm";
 import { User } from "../entities/user";
 import { Event } from "../entities/event";
@@ -5,10 +8,11 @@ import { EventParticipant } from "../entities/eventParticipant";
 import { InviteToken } from "../entities/inviteToken";
 import { OTP } from "../entities/otp";
 import { EventRequest } from "../entities/eventRequest";
-import { UserMedia } from "../entities/userMedia";
+import { EventMedia } from "../entities/eventMedia";
 import { EventFeedback } from "../entities/eventFeedback";
 import { Notification } from "../entities/notifications";
 import { Transaction } from "../entities/transactions";
+import { EventMessage } from "../entities/eventMessage";
 
 const isUsingUrl = !!process.env.DATABASE_URL;
 
@@ -26,7 +30,7 @@ export const AppDataSource = new DataSource({
         password: process.env.DB_PASSWORD,
         database: process.env.DB_NAME,
       }),
-  synchronize: true,
+  synchronize: false,
   logging: false,
   entities: [
     User,
@@ -35,11 +39,12 @@ export const AppDataSource = new DataSource({
     InviteToken,
     OTP,
     EventRequest,
-    UserMedia,
+    EventMedia,
+    EventMessage,
     EventFeedback,
     Notification,
     Transaction,
   ],
-  migrations: [],
+  migrations: [__dirname + "/../src/migrations/*.ts"],
   subscribers: [],
 });

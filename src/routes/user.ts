@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   addDetails,
+  addMessage,
   getEvents,
   getNotifications,
   joinEvent,
@@ -10,7 +11,7 @@ import {
   uploadMedia,
 } from "../controllers/user";
 import { authenticateToken } from "../middlewares/auth";
-import { upload } from "../config/multer";
+import { uploadMultiple, uploadSingleImage } from "../config/multer";
 import { payThruStripe } from "../controllers/payment";
 
 const router = Router();
@@ -21,10 +22,11 @@ router.get("/events", getEvents);
 router.get("/notifications", getNotifications);
 router.post("/reset-password", resetPassword);
 router.post("/userdetails", addDetails);
-router.post("/request-event", requestEvent);
+router.post("/add-message", addMessage);
+router.post("/request-event", uploadSingleImage.single("file"), requestEvent);
 router.post("/feedback/:event", submitFeedback);
 router.post("/join/:event", joinEvent);
-router.post("/upload", upload.array("files"), uploadMedia);
+router.post("/upload/:event", uploadMultiple.array("files"), uploadMedia);
 router.post("payment/stripe", payThruStripe);
 
 export default router;

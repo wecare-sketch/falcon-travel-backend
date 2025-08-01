@@ -4,6 +4,7 @@ import { AddEventDts, EditEventDts, PaymentDetails } from "../types/event";
 import { generateSlug } from "../utils/slugify";
 import { EventParticipant } from "../entities/eventParticipant";
 import {
+  EventStatus,
   EventType,
   MemberRole,
   notificationType,
@@ -18,6 +19,8 @@ import { Notification } from "../entities/notifications";
 import { User } from "../entities/user";
 import notificationService from "./notification";
 import { NotificationInputDts } from "../types/notification";
+import { AuthenticatedRequest } from "../types/request";
+import { mediaHandler } from "../utils/mediaHandler";
 
 const RequestRepository = AppDataSource.getRepository(EventRequest);
 const NotificationRepository = AppDataSource.getRepository(Notification);
@@ -29,14 +32,27 @@ const EventParticipantRepository =
 const UserRepository = AppDataSource.getRepository(User);
 
 const eventService = {
-  addEvent: async (event: AddEventDts) => {
+  addEvent: async (event: AddEventDts, req: AuthenticatedRequest) => {
     const slug = generateSlug(event.eventDetails.clientName);
+
+    const imageUrl = await mediaHandler(
+      req,
+      event.eventDetails.clientName,
+      slug,
+      {
+        folder: `events/${slug}/main`,
+        resource_type: "image",
+        allowed_formats: ["jpg", "jpeg", "png", "webp"],
+      }
+    );
 
     const depositAmount = Math.floor(
       event.paymentDetails.totalAmount - event.paymentDetails.pendingAmount
     );
 
     const newEvent = EventRepository.create({
+      imageUrl: imageUrl[0],
+      name: event.eventDetails.name,
       eventType: event.eventDetails.eventType,
       clientName: event.eventDetails.clientName,
       phoneNumber: event.eventDetails.phoneNumber,
@@ -68,6 +84,12 @@ const eventService = {
 
     eventFound.host = host;
     eventFound.cohosts = cohosts;
+    eventFound.eventStatus = EventStatus.STARTED;
+
+    eventFound.expiresAt = new Date(
+      new Date(eventFound.pickupDate).getTime() +
+        eventFound.hoursReserved * 60 * 60 * 1000
+    );
 
     await EventRepository.save(eventFound);
 
@@ -99,7 +121,10 @@ const eventService = {
 
     await sendInvite(host, `${process.env.CLIENT_URL}/${inviteToken}`);
 
-    return { message: "success", data: {} };
+    return {
+      message: "success",
+      data: { url: `${process.env.CLIENT_URL}/${inviteToken}` },
+    };
   },
 
   approveRequest: async (paymentDetails: PaymentDetails, event: string) => {
@@ -116,6 +141,7 @@ const eventService = {
     );
 
     const newEvent = EventRepository.create({
+      name: requestFound.name,
       eventType: requestFound.eventType,
       clientName: requestFound.clientName,
       phoneNumber: requestFound.phoneNumber,
@@ -146,21 +172,21 @@ const eventService = {
       },
     } as NotificationInputDts;
 
-    const recipient = await userService.findUserWithEmail(
-      requestFound.createdBy
-    );
+    const recipient = requestFound.user;
 
     await notificationService.send(notification, [recipient]);
 
-    await eventService.createEvent(
-      requestFound.createdBy,
-      requestFound.cohosts || [],
-      event
-    );
+    const url = (
+      await eventService.createEvent(
+        recipient.email,
+        requestFound.cohosts || [],
+        event
+      )
+    ).data.url;
 
     await RequestRepository.softDelete({ slug: event });
 
-    return { message: "success", data: newEvent };
+    return { message: "success", data: { event: newEvent, url: url } };
   },
 
   editEvent: async (eventObject: EditEventDts) => {
@@ -170,6 +196,10 @@ const eventService = {
 
     if (!eventFound) {
       throw new Error("Event not Found!");
+    }
+
+    if (eventFound.eventStatus !== EventStatus.PENDING) {
+      throw new Error("This Event cannot be Updated!");
     }
 
     const now = new Date();
@@ -187,6 +217,7 @@ const eventService = {
         eventObject.paymentDetails.pendingAmount
     );
 
+    eventFound.name = eventObject.eventDetails.name;
     eventFound.eventType = eventObject.eventDetails.eventType;
     eventFound.clientName = eventObject.eventDetails.clientName;
     eventFound.phoneNumber = eventObject.eventDetails.phoneNumber;
@@ -235,6 +266,7 @@ const eventService = {
       throw new Error("Request was not Found!");
     }
 
+    requestFound.name = eventObject.eventDetails.name;
     requestFound.eventType = eventObject.eventDetails.eventType;
     requestFound.clientName = eventObject.eventDetails.clientName;
     requestFound.phoneNumber = eventObject.eventDetails.phoneNumber;
@@ -244,7 +276,7 @@ const eventService = {
     requestFound.passengerCount = eventObject.vehicleInfo.numberOfPassengers;
     requestFound.hoursReserved = eventObject.vehicleInfo.hoursReserved;
     requestFound.participants = eventObject.participants ?? [
-      requestFound.createdBy,
+      requestFound.user.email,
     ];
 
     const newRequest = await RequestRepository.save(requestFound);
@@ -280,50 +312,76 @@ const eventService = {
   },
 
   getEvents: async ({
-    user,
+    userId,
+    page = 1,
+    limit = 10,
+    eventId,
+  }: {
+    userId?: string;
+    page?: number;
+    limit?: number;
+    eventId?: string;
+  }) => {
+    if (eventId) {
+      let event = await EventRepository.findOne({
+        where: { id: eventId },
+        relations: [
+          "participants",
+          "feedbacks",
+          "media",
+          "message",
+          "transactions",
+        ],
+      });
+
+      if (!event) throw new Error("Event not found!");
+
+      event = await eventService.checkAndUpdateEventExpiry(event);
+
+      return { message: "success", data: { event } };
+    } else {
+      if (userId) {
+        await userService.findUserWithId(userId);
+      }
+
+      const skip = (page - 1) * limit;
+
+      let [events, total] = await EventRepository.findAndCount({
+        where: userId ? { participants: { user: { id: userId } } } : {},
+        order: { createdAt: "DESC" },
+        skip,
+        take: limit,
+      });
+
+      events = await Promise.all(
+        events.map(eventService.checkAndUpdateEventExpiry)
+      );
+
+      return {
+        message: "success",
+        data: { total, page, limit, events },
+      };
+    }
+  },
+
+  getNotifications: async ({
+    userId,
     page = 1,
     limit = 10,
   }: {
-    user?: string;
+    userId?: string;
     page?: number;
     limit?: number;
   }) => {
-    if (user) {
-      await userService.findUserWithEmail(user);
+    if (userId) {
+      await userService.findUserWithId(userId);
     }
 
     const skip = (page - 1) * limit;
 
-    const [events, total] = await EventRepository.findAndCount({
-      where: user ? { participants: { email: user } } : {},
-      relations: ["participants"],
-      order: { createdAt: "DESC" },
-      skip,
-      take: limit,
-    });
-
-    return {
-      message: "sucess",
-      data: { total: total, page: page, limit: limit, events: events },
-    };
-  },
-
-  getNotifications: async ({
-    user,
-    page = 1,
-    limit = 10,
-  }: {
-    user: string;
-    page?: number;
-    limit?: number;
-  }) => {
-    await userService.findUserWithEmail(user);
-
-    const skip = (page - 1) * limit;
-
     const [notifications, total] = await NotificationRepository.findAndCount({
-      where: user ? { user: { email: user } } : {},
-      relations: ["triggeredBy", "event"],
+      where: userId ? { user: { id: userId } } : {},
+      relations: ["event"],
       order: { createdAt: "DESC" },
       skip,
       take: limit,
@@ -341,39 +399,51 @@ const eventService = {
   },
 
   getEventRequests: async ({
-    user,
+    userId,
     page = 1,
     limit = 10,
+    requestId,
   }: {
-    user?: string;
+    userId?: string;
     page?: number;
     limit?: number;
+    requestId?: string;
   }) => {
-    const skip = (page - 1) * limit;
+    if (requestId) {
+      const request = await RequestRepository.findOne({
+        where: { id: requestId },
+        relations: ["user"],
+      });
 
-    if (user) {
-      await userService.findUserWithEmail(user);
+      if (!request) throw new Error("Request not found!");
+
+      return { message: "success", data: { request: request } };
+    } else {
+      const skip = (page - 1) * limit;
+
+      if (userId) {
+        await userService.findUserWithId(userId);
+      }
+
+      const [requests, total] = await RequestRepository.findAndCount({
+        where: userId ? { user: { id: userId } } : {},
+        order: {
+          createdAt: "DESC",
+        },
+        skip,
+        take: limit,
+      });
+
+      return {
+        message: "sucess",
+        data: {
+          total: total,
+          page: page,
+          limit: limit,
+          requests: requests,
+        },
+      };
     }
-
-    const [requests, total] = await RequestRepository.findAndCount({
-      where: user ? { createdBy: user } : {},
-      relations: ["participants"],
-      order: {
-        createdAt: "DESC",
-      },
-      skip,
-      take: limit,
-    });
-
-    return {
-      message: "sucess",
-      data: {
-        total: total,
-        page: page,
-        limit: limit,
-        requests: requests,
-      },
-    };
   },
 
   getEventBySlug: async (slug: string) => {
@@ -397,6 +467,15 @@ const eventService = {
       .filter((u): u is User => !!u);
 
     return users || [];
+  },
+
+  checkAndUpdateEventExpiry: async (event: Event) => {
+    const now = new Date();
+    if (event.eventStatus === EventStatus.PENDING && event.expiresAt! < now) {
+      event.eventStatus = EventStatus.FINISHED;
+      await EventRepository.save(event);
+    }
+    return event;
   },
 };
 

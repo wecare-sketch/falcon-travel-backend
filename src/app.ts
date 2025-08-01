@@ -23,10 +23,15 @@ const isProd = process.env.NODE_ENV === "production" || process.env.VERCEL === "
 app.set("trust proxy", isProd ? 1 : "loopback");
 
 // CORS
-app.use(cors({
-  origin: "https://falcon-travel-frontend.vercel.app",
-  credentials: true,
-}));
+app.use(
+  cors({
+    origin: "*",
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: false, // must be false when using "*"
+    optionsSuccessStatus: 200,
+  })
+);
 
 // ⛔️ Special raw body for Stripe webhook (must come before express.json)
 app.use("/api/webhook", express.raw({ type: "application/json" }), webhookHandler);
@@ -49,6 +54,7 @@ export function ensureDataSource(): Promise<void> {
   const p = AppDataSource.initialize()
     .then(async () => {
       console.log("Database connected");
+      await AppDataSource.runMigrations(); // 👈 This runs pending migrations
       await createAdminUser();
     })
     .catch((err) => {

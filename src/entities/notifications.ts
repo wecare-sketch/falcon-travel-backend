@@ -13,7 +13,7 @@ import { EventRequest } from "./eventRequest";
 @Entity("notifications")
 export class Notification {
   @PrimaryGeneratedColumn()
-  id!: string;
+  id!: number;
 
   @Column({ type: "varchar", length: 255 })
   title!: string;
@@ -35,9 +35,6 @@ export class Notification {
 
   @ManyToOne(() => EventRequest, { nullable: true })
   request?: EventRequest;
-
-  @ManyToOne(() => User)
-  triggeredBy?: User;
 
   @CreateDateColumn()
   createdAt!: Date;

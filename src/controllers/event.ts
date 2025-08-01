@@ -13,11 +13,14 @@ export const addEvent = errorHandler(
   async (req: AuthenticatedRequest, res: Response) => {
     const { eventDetails, vehicleInfo, paymentDetails } =
       req.body as AddEventDts;
-    const result = await eventService.addEvent({
-      eventDetails,
-      vehicleInfo,
-      paymentDetails,
-    });
+    const result = await eventService.addEvent(
+      {
+        eventDetails,
+        vehicleInfo,
+        paymentDetails,
+      },
+      req
+    );
     return res.json(result);
   }
 );
@@ -84,9 +87,15 @@ export const getEvents = errorHandler(
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
 
-    const user = req.query.user as string | undefined;
+    const userId = req.query.userId as string | undefined;
+    const eventId = req.query.eventId as string | undefined;
 
-    const result = await eventService.getEvents({ user, page, limit });
+    const result = await eventService.getEvents({
+      userId,
+      page,
+      limit,
+      eventId,
+    });
 
     return res.json(result);
   }
@@ -97,12 +106,14 @@ export const getEventRequests = errorHandler(
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
 
-    const user = req.query.user as string | undefined;
+    const userId = req.query.userId as string | undefined;
+    const requestId = req.query.requestId as string | undefined;
 
     const result = await eventService.getEventRequests({
-      user,
+      userId,
       page,
       limit,
+      requestId,
     });
 
     return res.json(result);

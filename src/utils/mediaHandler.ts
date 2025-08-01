@@ -1,38 +1,54 @@
 import { Request } from "express";
-import { mkdir } from "fs/promises";
-import path from "path";
-import fs from "fs/promises";
+import cloudinary from "../config/storage";
 
-const uploadDir = path.join(process.cwd(), "public", "uploads");
+import {
+  UploadApiOptions,
+  UploadApiResponse,
+  UploadApiErrorResponse,
+} from "cloudinary";
 
-export async function mediaUpload(blob: string, req: Request) {
-  const folderPath = path.join(uploadDir, blob);
-  await mkdir(folderPath, { recursive: true });
+export async function mediaHandler(
+  req: Request,
+  email: string,
+  eventSlug: string,
+  options?: Partial<UploadApiOptions>
+) {
+  let files: Express.Multer.File[] = [];
 
-  const files = req.files as Express.Multer.File[];
-
-  if (!files?.length) {
-    throw new Error("No files received");
+  if (Array.isArray(req.files)) {
+    files = req.files;
+  } else if (req.file) {
+    files = [req.file];
   }
 
-  const result = await Promise.all(
-    files.map((file) => {
-      const filePath = path.join(folderPath, file.originalname);
-      const result = fs.writeFile(filePath, file.buffer);
-      console.log(
-        "what we get after Files are uploaded: ",
-        result,
-        " and the buffer state being: ",
-        file.buffer
-      );
+  if (!files.length) throw new Error("No files received");
 
-      return result;
+  const defaultOptions: UploadApiOptions = {
+    folder: `events/${eventSlug}/${email}`,
+    resource_type: "auto",
+  };
+
+  const uploadOptions = { ...defaultOptions, ...options };
+
+  const uploadedFiles = await Promise.all(
+    files.map((file) => {
+      return new Promise<string>((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          uploadOptions,
+          (
+            err: UploadApiErrorResponse | undefined,
+            result: UploadApiResponse | undefined
+          ) => {
+            if (err) return reject(err);
+            if (!result?.secure_url) return reject(new Error("Upload failed"));
+            resolve(result.secure_url);
+          }
+        );
+
+        stream.end(file.buffer);
+      });
     })
   );
 
-  console.log("After writing all the files we got: ", result);
-
-  const url = `/uploads/${blob}`;
-
-  return { message: "success", data: url };
+  return uploadedFiles;
 }

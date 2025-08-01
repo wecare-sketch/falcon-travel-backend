@@ -3,22 +3,26 @@ import {
   CreateDateColumn,
   Entity,
   JoinColumn,
+  ManyToOne,
   OneToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from "typeorm";
 import { User } from "./user";
+import { Event } from "./event";
 
-@Entity("user_media")
-export class UserMedia {
-  @PrimaryGeneratedColumn("uuid")
-  id!: string;
+@Entity("event_messages")
+export class EventMessage {
+  @PrimaryGeneratedColumn()
+  id!: number;
 
   @Column({ type: "varchar", length: 255 })
-  blob!: string;
+  message!: string;
 
-  @OneToOne(() => User)
-  @JoinColumn()
+  @ManyToOne(() => Event, (event) => event.messages)
+  event!: Event;
+
+  @ManyToOne(() => User)
   user!: User;
 
   @CreateDateColumn()
