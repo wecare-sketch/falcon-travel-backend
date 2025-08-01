@@ -1,4 +1,3 @@
-
 import * as dotenv from "dotenv";
 dotenv.config(); // ✅ this must come before using any env variables
 import { DataSource } from "typeorm";
@@ -45,6 +44,6 @@ export const AppDataSource = new DataSource({
     Notification,
     Transaction,
   ],
-  migrations: [__dirname + "/../src/migrations/*.ts"],
+  migrations: [__dirname + "/../migrations/*.{ts,js}"],
   subscribers: [],
 });

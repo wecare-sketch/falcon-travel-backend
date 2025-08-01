@@ -6,9 +6,9 @@
   "type": "commonjs",
   "scripts": {
     "typeorm": "ts-node ./node_modules/typeorm/cli.js",
-    "migration:generate": "npm run typeorm migration:generate -d src/config/db.ts",
-    "migration:run": "npm run typeorm migration:run -d src/config/db.ts",
-    "migration:revert": "npm run typeorm migration:revert -d src/config/db.ts",
+    "migration:generate": "ts-node ./node_modules/typeorm/cli.js migration:generate -d src/config/db.ts",
+    "migration:run": "ts-node ./node_modules/typeorm/cli.js migration:run -d src/config/db.ts",
+    "migration:revert": "ts-node ./node_modules/typeorm/cli.js migration:revert -d src/config/db.ts",
     "dev": "cross-env nodemon --watch src --ext ts --exec ts-node src/index.ts",
     "dev:vercel": "vercel dev",
     "build": "tsc -p tsconfig.json",

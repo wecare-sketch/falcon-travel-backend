@@ -60,6 +60,8 @@ export class InitialSync1754057954806 implements MigrationInterface {
         await queryRunner.query(`ALTER TABLE "events" DROP COLUMN "id"`);
         await queryRunner.query(`ALTER TABLE "events" ADD "id" uuid NOT NULL DEFAULT uuid_generate_v4()`);
         await queryRunner.query(`ALTER TABLE "events" ADD CONSTRAINT "PK_40731c7151fe4be3116e45ddf73" PRIMARY KEY ("id")`);
+        await queryRunner.query(`ALTER TABLE "user_media" DROP CONSTRAINT IF EXISTS "FK_d77f9c7badfa3380b49a12a257f"`);
+        await queryRunner.query(`DROP TABLE IF EXISTS "user_media"`);
         await queryRunner.query(`ALTER TABLE "users" DROP CONSTRAINT "PK_a3ffb1c0c8416b9fc6f907b7433"`);
         await queryRunner.query(`ALTER TABLE "users" DROP COLUMN "id"`);
         await queryRunner.query(`ALTER TABLE "users" ADD "id" uuid NOT NULL DEFAULT uuid_generate_v4()`);
