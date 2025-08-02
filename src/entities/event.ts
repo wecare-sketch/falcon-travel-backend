@@ -76,8 +76,8 @@ export class Event {
   @UpdateDateColumn()
   updatedAt!: Date;
 
-  @Column({ type: "timestamp" })
-  expiresAt?: Date;
+  @Column({ type: "timestamp", nullable: true })
+  expiresAt?: Date | null;
 
   @Column({ type: "varchar", length: 255, nullable: true })
   host?: string;
