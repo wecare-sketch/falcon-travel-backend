@@ -9,7 +9,6 @@ import {
   ManyToOne,
   JoinColumn,
 } from "typeorm";
-import { EventParticipant } from "./eventParticipant";
 import { PaymentStatus } from "../constants/enums";
 import { User } from "./user";
 
@@ -51,16 +50,16 @@ export class EventRequest {
   @Column({ type: "int" })
   passengerCount!: number;
 
-  @Column({ type: "int" })
+  @Column({ type: "int", nullable: true })
   totalAmount?: number;
 
-  @Column({ type: "int" })
+  @Column({ type: "int", nullable: true })
   pendingAmount?: number;
 
-  @Column({ type: "int" })
+  @Column({ type: "int", nullable: true })
   depositAmount?: number;
 
-  @Column({ type: "int" })
+  @Column({ type: "int", nullable: true })
   equityDivision?: number;
 
   @Column({ type: "enum", enum: PaymentStatus, default: PaymentStatus.PENDING })
@@ -82,9 +81,9 @@ export class EventRequest {
   @Column({ type: "varchar", length: 255, nullable: true })
   host?: string;
 
-  @Column({ type: "varchar", length: 255, nullable: true })
+  @Column({ type: "jsonb", nullable: true })
   cohosts?: string[];
 
-  @Column({ type: "varchar", length: 255, nullable: true })
+  @Column({ type: "jsonb", nullable: true })
   participants?: string[];
 }

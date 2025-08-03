@@ -22,11 +22,11 @@ router.get("/events", getEvents);
 router.get("/notifications", getNotifications);
 router.post("/reset-password", resetPassword);
 router.post("/userdetails", addDetails);
-router.post("/add-message", addMessage);
+router.post("/add-message/:event", addMessage);
 router.post("/request-event", uploadSingleImage.single("file"), requestEvent);
 router.post("/feedback/:event", submitFeedback);
-router.post("/join/:event", joinEvent);
+router.post("/join/:token", joinEvent);
 router.post("/upload/:event", uploadMultiple.array("files"), uploadMedia);
-router.post("payment/stripe", payThruStripe);
+router.post("/payment/stripe", payThruStripe);
 
 export default router;

@@ -115,15 +115,11 @@ const userService = {
     return { message: "success", data: jwtToken };
   },
 
-  loginWithOAuth: async (user: User, token?: string) => {
+  loginWithOAuth: async (user: User) => {
     const payload = { id: user.id, email: user.email, role: user.role };
     const jwtToken = jwt.sign(payload, process.env.JWT_SECRET_KEY!, {
       expiresIn: process.env.JWT_EXPIRY || "7d",
     } as SignOptions);
-
-    if (token) {
-      await userService.joinEvent(token, user.email);
-    }
 
     return { message: "success", data: jwtToken };
   },
@@ -141,6 +137,15 @@ const userService = {
       resource_type: "image",
       allowed_formats: ["jpg", "jpeg", "png", "webp"],
     });
+
+    if (Array.isArray(event.cohosts) && typeof event.cohosts[0] === "string") {
+      try {
+        event.cohosts = JSON.parse(event.cohosts[0]);
+      } catch (err) {
+        console.error("Failed to parse cohosts:", err);
+        event.cohosts = [];
+      }
+    }
 
     const newRequest = RequestRepository.create({
       imageUrl: imageURL[0],
@@ -211,7 +216,12 @@ const userService = {
 
     await UserRepository.save(user);
 
-    await userService.addEventParticipant(event, email, inviteFound);
+    if (
+      event.eventStatus === EventStatus.PENDING ||
+      event.eventStatus === EventStatus.CREATED
+    ) {
+      await userService.addEventParticipant(event, email, inviteFound);
+    }
 
     const payload = { id: user.id, email: user.email, role: user.role };
 
@@ -257,9 +267,9 @@ const userService = {
     const user = await userService.findUserWithEmail(email);
     const event = await eventService.getEventBySlug(eventSlug);
 
-    if (event.eventStatus !== EventStatus.FINISHED) {
-      throw new Error("Cannot Add Media to this event yet!");
-    }
+    // if (event.eventStatus !== EventStatus.FINISHED) {
+    //   throw new Error("Cannot Add Media to this event yet!");
+    // }
 
     const uploadedUrls = await mediaHandler(req, user.email, event.slug);
 
@@ -284,9 +294,9 @@ const userService = {
 
     if (!eventFound) throw new Error("Event does not exist!");
 
-    if (eventFound.eventStatus !== EventStatus.FINISHED) {
-      throw new Error("Cannot Add Feedback to this event yet!");
-    }
+    // if (eventFound.eventStatus !== EventStatus.FINISHED) {
+    //   throw new Error("Cannot Add Feedback to this event yet!");
+    // }
 
     const user = await userService.findUserWithEmail(email);
 
@@ -344,6 +354,8 @@ const userService = {
     });
 
     await MessageRepository.save(newMessage);
+
+    return { message: "success", data: {} };
   },
 
   findUserWithEmail: async (email: string) => {
@@ -379,9 +391,14 @@ const userService = {
     const isUser = await UserRepository.findOne({ where: { email: email } });
 
     if (!existing) {
-      const equityAmount = isHost
-        ? event.depositAmount
-        : Math.floor(event.pendingAmount / event.equityDivision);
+      const defaultEquity = Math.floor(
+        event.pendingAmount / event.equityDivision
+      );
+
+      const equityAmount =
+        isHost && event.depositAmount !== 0
+          ? event.depositAmount
+          : defaultEquity;
 
       participant = EventParticipantRepository.create({
         email,
@@ -465,6 +482,13 @@ const userService = {
   joinEvent: async (token: string, email: string) => {
     const { inviteFound, event } = await userService.checkInvite(token);
 
+    if (
+      event.eventStatus !== EventStatus.PENDING &&
+      event.eventStatus !== EventStatus.CREATED
+    ) {
+      throw new Error("Cannot Join Event at this time!");
+    }
+
     const exists = await EventParticipantRepository.findOne({
       where: { email: email, event: { slug: event.slug } },
     });
@@ -472,6 +496,8 @@ const userService = {
     if (exists) return;
 
     await userService.addEventParticipant(event, email, inviteFound);
+
+    return { message: "success", data: {} };
   },
 
   getAdmin: async () => {

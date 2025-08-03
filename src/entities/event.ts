@@ -82,7 +82,7 @@ export class Event {
   @Column({ type: "varchar", length: 255, nullable: true })
   host?: string;
 
-  @Column({ type: "varchar", length: 255, nullable: true })
+  @Column({ type: "jsonb", nullable: true })
   cohosts?: string[];
 
   @OneToMany(() => EventParticipant, (ep) => ep.event, { cascade: true })

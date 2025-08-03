@@ -43,12 +43,7 @@ router.post(
 );
 
 router.post("/event/:event/create", authorizeAdmin, createEvent);
-router.patch(
-  "/event/:event/edit",
-  authorizeAdmin,
-  uploadSingleImage.single("file"),
-  editEvent
-);
+router.patch("/event/:event/edit", authorizeAdmin, editEvent);
 router.post("/request/:event/approve", authorizeAdmin, approveRequest);
 
 router.get("/events", authorizeAdmin, getEvents);

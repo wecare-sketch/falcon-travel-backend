@@ -47,6 +47,7 @@ const paymentService = {
 
     if (hasExpired) {
       event.eventStatus = EventStatus.EXPIRED;
+      await EventRepository.save(event);
       throw new Error(`This Event has already expired!`);
     }
 
@@ -57,6 +58,8 @@ const paymentService = {
     if (eventParticipant.paymentStatus === PaymentStatus.PAID) {
       throw new Error("Unable to process this payment");
     }
+
+    amount = amount * 100;
 
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amount,
@@ -187,7 +190,6 @@ const paymentService = {
       event.pendingAmount = event.pendingAmount - amount;
 
       if (event.pendingAmount <= 0) {
-        event.eventStatus = EventStatus.FINISHED;
         event.paymentStatus = PaymentStatus.PAID;
       }
 

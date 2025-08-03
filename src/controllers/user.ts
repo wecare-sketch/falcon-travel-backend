@@ -57,9 +57,9 @@ export const joinEvent = errorHandler(
   async (req: AuthenticatedRequest, res: Response) => {
     const user = req.user!;
 
-    const { event } = req.params;
+    const { token } = req.params;
 
-    const result = await userService.joinEvent(user.email, event);
+    const result = await userService.joinEvent(token, user.email);
     return res.json(result);
   }
 );

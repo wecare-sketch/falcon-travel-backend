@@ -29,6 +29,7 @@ export enum EventStatus {
   PENDING = "pending",
   FINISHED = "finished",
   EXPIRED = "expired",
+  CREATED = "created",
   STARTED = "started",
   DISCREPANCY = "discrepancy",
 }

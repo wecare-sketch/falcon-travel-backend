@@ -84,7 +84,7 @@ const eventService = {
 
     eventFound.host = host;
     eventFound.cohosts = cohosts;
-    eventFound.eventStatus = EventStatus.STARTED;
+    eventFound.eventStatus = EventStatus.CREATED;
 
     eventFound.expiresAt = new Date(
       new Date(eventFound.pickupDate).getTime() +
@@ -93,19 +93,21 @@ const eventService = {
 
     await EventRepository.save(eventFound);
 
-    const cohostParticipants = cohosts.map((email) =>
-      EventParticipantRepository.create({
-        email: email,
-        event: eventFound,
-        equityAmount: Math.floor(
-          eventFound.pendingAmount / eventFound.equityDivision
-        ),
-        paymentStatus: PaymentStatus.PENDING,
-        role: MemberRole.COHOST,
-      })
-    );
+    if (Array.isArray(cohosts) && cohosts.length) {
+      const cohostParticipants = cohosts.map((email) =>
+        EventParticipantRepository.create({
+          email: email,
+          event: eventFound,
+          equityAmount: Math.floor(
+            eventFound.pendingAmount / eventFound.equityDivision
+          ),
+          paymentStatus: PaymentStatus.PENDING,
+          role: MemberRole.COHOST,
+        })
+      );
 
-    await EventParticipantRepository.save([...cohostParticipants]);
+      await EventParticipantRepository.save([...cohostParticipants]);
+    }
 
     const inviteToken = nanoid(10);
     const expiryDays = Number(process.env.INVITE_EXPIRY) || 3;
@@ -130,6 +132,7 @@ const eventService = {
   approveRequest: async (paymentDetails: PaymentDetails, event: string) => {
     const requestFound = await RequestRepository.findOne({
       where: { slug: event },
+      relations: ["user"],
     });
 
     if (!requestFound) {
@@ -155,6 +158,7 @@ const eventService = {
       depositAmount: depositAmount,
       equityDivision: paymentDetails.equityDivision,
       slug: requestFound.slug,
+      imageUrl: requestFound.imageUrl,
     });
 
     await EventRepository.save(newEvent);
@@ -198,7 +202,10 @@ const eventService = {
       throw new Error("Event not Found!");
     }
 
-    if (eventFound.eventStatus !== EventStatus.PENDING) {
+    if (
+      eventFound.eventStatus !== EventStatus.PENDING &&
+      eventFound.eventStatus !== EventStatus.CREATED
+    ) {
       throw new Error("This Event cannot be Updated!");
     }
 
@@ -329,7 +336,7 @@ const eventService = {
           "participants",
           "feedbacks",
           "media",
-          "message",
+          "messages",
           "transactions",
         ],
       });
@@ -472,7 +479,7 @@ const eventService = {
   checkAndUpdateEventExpiry: async (event: Event) => {
     const now = new Date();
     if (event.eventStatus === EventStatus.PENDING && event.expiresAt! < now) {
-      event.eventStatus = EventStatus.FINISHED;
+      event.eventStatus = EventStatus.EXPIRED;
       await EventRepository.save(event);
     }
     return event;
