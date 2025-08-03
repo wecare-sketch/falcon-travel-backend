@@ -380,7 +380,7 @@ const userService = {
     inviteFound: InviteToken
   ) => {
     const existing = await EventParticipantRepository.findOne({
-      where: { email: email, event: { slug: inviteFound.eventSlug } },
+      where: { email: email, event: { slug: inviteFound.event.slug } },
     });
 
     const isHost = email === event.host;
@@ -460,12 +460,13 @@ const userService = {
 
     const inviteFound = await InviteRepository.findOne({
       where: { inviteToken: inviteToken, expiresAt: MoreThan(now) },
+      relations: ["event"],
     });
 
     if (!inviteFound) throw new Error("Invalid or Expired Invite");
 
     const event = await EventRepository.findOne({
-      where: { slug: inviteFound.eventSlug },
+      where: { slug: inviteFound.event.slug },
     });
     if (!event) throw new Error("Event not found");
 

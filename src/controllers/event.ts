@@ -119,3 +119,12 @@ export const getEventRequests = errorHandler(
     return res.json(result);
   }
 );
+
+export const deleteEvent = errorHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const { event } = req.params;
+
+    const result = await eventService.deleteEvent(event);
+    return res.json(result);
+  }
+);

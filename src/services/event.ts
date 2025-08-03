@@ -115,7 +115,7 @@ const eventService = {
     const tokenGenerated = InviteTokenRepository.create({
       inviteToken: inviteToken,
       hostEmail: host,
-      eventSlug: eventFound.slug,
+      event: eventFound,
       expiresAt: new Date(Date.now() + expiryDays * 24 * 60 * 60 * 1000),
     });
 
@@ -338,6 +338,7 @@ const eventService = {
           "media",
           "messages",
           "transactions",
+          "participants.user",
         ],
       });
 
@@ -478,11 +479,35 @@ const eventService = {
 
   checkAndUpdateEventExpiry: async (event: Event) => {
     const now = new Date();
+
+    if (
+      event.eventStatus === EventStatus.PENDING &&
+      new Date(event.pickupDate) < now
+    ) {
+      event.eventStatus = EventStatus.STARTED;
+      await EventRepository.save(event);
+    }
+
     if (event.eventStatus === EventStatus.PENDING && event.expiresAt! < now) {
       event.eventStatus = EventStatus.EXPIRED;
       await EventRepository.save(event);
     }
     return event;
+  },
+
+  deleteEvent: async (eventSlug: string) => {
+    const event = await eventService.getEventBySlug(eventSlug);
+
+    if (
+      event.eventStatus === EventStatus.STARTED ||
+      event.eventStatus === EventStatus.FINISHED
+    ) {
+      throw new Error("Cannot Delete this Event!");
+    }
+
+    await EventRepository.delete({ slug: event.slug });
+
+    return { message: "success", data: {} };
   },
 };
 

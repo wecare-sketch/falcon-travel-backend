@@ -35,9 +35,9 @@ const paymentService = {
       throw new Error("Participant does not exist!");
     }
 
-    if (event.eventStatus !== EventStatus.STARTED) {
-      throw new Error(`This Event is currently ${event.eventStatus}`);
-    }
+    // if (event.eventStatus !== EventStatus.STARTED) {
+    //   throw new Error(`This Event hasn't started yet!`);
+    // }
 
     const now = new Date(Date.now());
     const expiryDate = new Date(

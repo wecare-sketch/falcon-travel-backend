@@ -88,18 +88,18 @@ export class Event {
   @OneToMany(() => EventParticipant, (ep) => ep.event, { cascade: true })
   participants?: EventParticipant[];
 
-  @OneToMany(() => EventFeedback, (feedback) => feedback.event)
-  feedbacks!: EventFeedback[];
+  @OneToMany(() => EventFeedback, (feedback) => feedback.event, { cascade: true })
+  feedbacks?: EventFeedback[];
 
-  @OneToMany(() => Notification, (notif) => notif.event)
+  @OneToMany(() => Notification, (notif) => notif.event, { cascade: true })
   notifications?: Notification[];
 
-  @OneToMany(() => EventMedia, (media) => media.event)
+  @OneToMany(() => EventMedia, (media) => media.event, { cascade: true })
   media?: EventMedia[];
 
-  @OneToMany(() => EventMessage, (message) => message.event)
+  @OneToMany(() => EventMessage, (message) => message.event, { cascade: true })
   messages?: EventMessage[];
 
-  @OneToMany(() => Transaction, (trans) => trans.event)
-  transactions!: Transaction[];
+  @OneToMany(() => Transaction, (trans) => trans.event, { cascade: true })
+  transactions?: Transaction[];
 }

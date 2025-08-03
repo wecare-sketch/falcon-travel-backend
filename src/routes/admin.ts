@@ -1,10 +1,9 @@
 import express from "express";
 import {
-  addEvent,
   approveRequest,
   createEvent,
+  deleteEvent,
   editEvent,
-  editRequest,
   getEventRequests,
   getEvents,
 } from "../controllers/event";
@@ -49,5 +48,7 @@ router.post("/request/:event/approve", authorizeAdmin, approveRequest);
 router.get("/events", authorizeAdmin, getEvents);
 router.get("/event-requests", authorizeAdmin, getEventRequests);
 router.get("/notifications", authorizeAdmin, getNotifications);
+
+router.delete("/event/:event/delete", deleteEvent);
 
 export default router;

@@ -4,7 +4,10 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   PrimaryGeneratedColumn,
+  OneToOne,
+  JoinColumn,
 } from "typeorm";
+import { Event } from "./event";
 
 @Entity("invite_tokens")
 export class InviteToken {
@@ -17,8 +20,9 @@ export class InviteToken {
   @Column({ type: "varchar", length: 255 })
   hostEmail!: string;
 
-  @Column({ type: "varchar", length: 255 })
-  eventSlug!: string;
+  @OneToOne(() => Event, { onDelete: "CASCADE" })
+  @JoinColumn({ name: "eventId" })
+  event!: Event;
 
   @Column({ type: "int", default: 0 })
   registered!: number;
