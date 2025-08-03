@@ -3,7 +3,6 @@ import {
   approveRequest,
   createEvent,
   deleteEvent,
-  editEvent,
   getEventRequests,
   getEvents,
 } from "../controllers/event";
@@ -42,7 +41,33 @@ router.post(
 );
 
 router.post("/event/:event/create", authorizeAdmin, createEvent);
-router.patch("/event/:event/edit", authorizeAdmin, editEvent);
+router.patch(
+  "/event/:event/edit",
+  authorizeAdmin,
+  uploadSingleImage.single("file"),
+  async (req, res) => {
+    try {
+      const parsedEvent = {
+        eventDetails: JSON.parse(req.body.eventDetails),
+        vehicleInfo: JSON.parse(req.body.vehicleInfo),
+        paymentDetails: JSON.parse(req.body.paymentDetails),
+      };
+
+      const result = await eventService.editEvent(
+        req.params.event,
+        parsedEvent
+      );
+      res.status(200).json(result);
+    } catch (error) {
+      console.error("Error parsing or editing event:", error);
+      const message =
+        error instanceof Error ? error.message : "Unknown server error";
+
+      res.status(400).json({ message: "Invalid request", error: message });
+    }
+  }
+);
+
 router.post("/request/:event/approve", authorizeAdmin, approveRequest);
 
 router.get("/events", authorizeAdmin, getEvents);

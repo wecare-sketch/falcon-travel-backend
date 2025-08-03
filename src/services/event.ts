@@ -1,6 +1,11 @@
 import { AppDataSource } from "../config/db";
 import { Event } from "../entities/event";
-import { AddEventDts, EditEventDts, PaymentDetails } from "../types/event";
+import {
+  AddEventDts,
+  EditEventDts,
+  PaymentDetails,
+  RequestEventDts,
+} from "../types/event";
 import { generateSlug } from "../utils/slugify";
 import { EventParticipant } from "../entities/eventParticipant";
 import {
@@ -193,9 +198,9 @@ const eventService = {
     return { message: "success", data: { event: newEvent, url: url } };
   },
 
-  editEvent: async (eventObject: EditEventDts) => {
+  editEvent: async (slug: string, eventObject: AddEventDts) => {
     const eventFound = await EventRepository.findOne({
-      where: { slug: eventObject.event },
+      where: { slug: slug },
     });
 
     if (!eventFound) {

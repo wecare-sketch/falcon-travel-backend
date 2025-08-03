@@ -26,7 +26,7 @@ app.set("trust proxy", isProd ? 1 : "loopback");
 app.use(
   cors({
     origin: "*",
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    methods: ["GET", "POST", "PATCH" ,"PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: false, // must be false when using "*"
     optionsSuccessStatus: 200,
