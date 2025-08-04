@@ -8,6 +8,7 @@ import {
   EditEventDts,
 } from "../types/event";
 import eventService from "../services/event";
+import userService from "../services/user";
 
 export const addEvent = errorHandler(
   async (req: AuthenticatedRequest, res: Response) => {
@@ -48,32 +49,48 @@ export const createEvent = errorHandler(
   }
 );
 
-export const editRequest = errorHandler(
+export const editEvent = errorHandler(
   async (req: AuthenticatedRequest, res: Response) => {
     const { eventDetails, vehicleInfo, paymentDetails } =
       req.body as EditEventDts;
 
     const { event } = req.params;
 
-    const result = await eventService.editRequest({
+    const result = await eventService.editEvent(event, {
       eventDetails,
       vehicleInfo,
       paymentDetails,
+    });
+    return res.json(result);
+  }
+);
+
+export const editRequest = errorHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const { eventDetails, vehicleInfo } = req.body as EditEventDts;
+
+    const { event } = req.params;
+
+    const result = await eventService.editRequest({
+      eventDetails,
+      vehicleInfo,
       event,
     });
     return res.json(result);
   }
 );
 
-export const getEvents = errorHandler(
+export const getEventMedia = errorHandler(
   async (req: AuthenticatedRequest, res: Response) => {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
 
     const userId = req.query.userId as string | undefined;
-    const eventId = req.query.eventId as string | undefined;
+    const { event } = req.params;
 
-    const result = await eventService.getEvents({
+    const eventId = event;
+
+    const result = await userService.getAllMediaFromEvent({
       userId,
       page,
       limit,
@@ -108,6 +125,34 @@ export const deleteEvent = errorHandler(
     const { event } = req.params;
 
     const result = await eventService.deleteEvent(event);
+    return res.json(result);
+  }
+);
+
+export const deleteRequest = errorHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const { request } = req.params;
+
+    const result = await eventService.deleteRequest(request);
+    return res.json(result);
+  }
+);
+
+export const getEvents = errorHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+
+    const userId = req.query.userId as string | undefined;
+    const eventId = req.query.eventId as string | undefined;
+
+    const result = await eventService.getEvents({
+      userId,
+      page,
+      limit,
+      eventId,
+    });
+
     return res.json(result);
   }
 );

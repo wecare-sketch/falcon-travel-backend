@@ -1,6 +1,11 @@
 import { AppDataSource } from "../config/db";
 import { Event } from "../entities/event";
-import { AddEventDts, EditEventDts, PaymentDetails } from "../types/event";
+import {
+  AddEventDts,
+  EditEventDts,
+  EditRequestDts,
+  PaymentDetails,
+} from "../types/event";
 import { generateSlug } from "../utils/slugify";
 import { EventParticipant } from "../entities/eventParticipant";
 import {
@@ -264,7 +269,7 @@ const eventService = {
     return { message: "success", data: newEvent };
   },
 
-  editRequest: async (eventObject: EditEventDts) => {
+  editRequest: async (eventObject: EditRequestDts) => {
     const requestFound = await RequestRepository.findOne({
       where: { slug: eventObject.event },
     });
@@ -444,7 +449,7 @@ const eventService = {
       });
 
       return {
-        message: "sucess",
+        message: "success",
         data: {
           total: total,
           page: page,
@@ -507,6 +512,20 @@ const eventService = {
     }
 
     await EventRepository.delete({ slug: event.slug });
+
+    return { message: "success", data: {} };
+  },
+
+  deleteRequest: async (requestSlug: string) => {
+    const request = await RequestRepository.findOne({
+      where: { slug: requestSlug },
+    });
+
+    if (!request) {
+      throw new Error("Request does not exist!");
+    }
+
+    await RequestRepository.delete({ slug: request.slug });
 
     return { message: "success", data: {} };
   },

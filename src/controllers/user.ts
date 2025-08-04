@@ -156,3 +156,22 @@ export const uploadMedia = errorHandler(
     return res.json(result);
   }
 );
+
+export const getUserMedia = errorHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+
+    const userId = req.user!.id;
+    const { event } = req.params;
+
+    const result = await eventService.getEvents({
+      userId,
+      page,
+      limit,
+      eventId: event,
+    });
+
+    return res.json(result);
+  }
+);

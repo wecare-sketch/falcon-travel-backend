@@ -9,6 +9,13 @@ export interface EditEventDts extends AddEventDts {
   participants?: string[];
 }
 
+export interface EditRequestDts {
+  eventDetails: EventDetails;
+  vehicleInfo: VehicleInfo;
+  event: string;
+  participants?: string[];
+}
+
 export interface CreateEventDts {
   host: string;
   cohosts: string[];

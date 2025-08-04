@@ -52,3 +52,15 @@ export async function mediaHandler(
 
   return uploadedFiles;
 }
+
+export async function deleteCloudinaryAssets(urls: string[]) {
+  const deletions = urls.map((url) => {
+    const parts = url.split("/");
+    const publicIdWithExt = parts.slice(-2).join("/");
+    const publicId = publicIdWithExt.replace(/\.[^/.]+$/, "");
+
+    return cloudinary.uploader.destroy(publicId);
+  });
+
+  await Promise.allSettled(deletions);
+}

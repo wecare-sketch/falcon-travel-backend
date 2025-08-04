@@ -4,6 +4,7 @@ import {
   addMessage,
   getEvents,
   getNotifications,
+  getUserMedia,
   joinEvent,
   requestEvent,
   resetPassword,
@@ -19,6 +20,7 @@ const router = Router();
 router.use(authenticateToken);
 
 router.get("/events", getEvents);
+router.get("/event/media/:event", getUserMedia);
 router.get("/notifications", getNotifications);
 router.post("/reset-password", resetPassword);
 router.post("/userdetails", addDetails);

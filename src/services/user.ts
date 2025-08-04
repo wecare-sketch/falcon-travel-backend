@@ -512,6 +512,48 @@ const userService = {
 
     return exists;
   },
+
+  getAllMediaFromEvent: async ({
+    userId,
+    page = 1,
+    limit = 10,
+    eventId,
+  }: {
+    userId?: string;
+    page?: number;
+    limit?: number;
+    eventId: string;
+  }) => {
+    if (!eventId) throw new Error("Event ID is required!");
+
+    const event = await EventRepository.findOne({ where: { id: eventId } });
+    if (!event) throw new Error("Event does not exist!");
+
+    const skip = (page - 1) * limit;
+
+    const where: any = { event: { id: eventId } };
+    if (userId) {
+      where.user = { id: userId };
+    }
+
+    const [media, total] = await MediaRepository.findAndCount({
+      where,
+      relations: ["user", "event", "user.id", "event.id"],
+      order: { createdAt: "DESC" },
+      skip,
+      take: limit,
+    });
+
+    return {
+      message: "success",
+      data: {
+        media,
+        total,
+        page,
+        pages: Math.ceil(total / limit),
+      },
+    };
+  },
 };
 
 export default userService;
