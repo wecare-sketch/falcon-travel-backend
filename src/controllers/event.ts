@@ -69,12 +69,12 @@ export const editRequest = errorHandler(
   async (req: AuthenticatedRequest, res: Response) => {
     const { eventDetails, vehicleInfo } = req.body as EditEventDts;
 
-    const { event } = req.params;
+    const { request } = req.params;
 
     const result = await eventService.editRequest({
       eventDetails,
       vehicleInfo,
-      event,
+      request,
     });
     return res.json(result);
   }

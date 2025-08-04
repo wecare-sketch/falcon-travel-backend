@@ -3,6 +3,7 @@ import {
   approveRequest,
   createEvent,
   deleteEvent,
+  deleteRequest,
   editRequest,
   getEventMedia,
   getEventRequests,
@@ -70,7 +71,32 @@ router.patch(
   }
 );
 
-router.patch("/request/:request/edit", authorizeAdmin, editRequest);
+router.patch(
+  "/request/:request/edit",
+  authorizeAdmin,
+  uploadSingleImage.single("file"),
+  async (req, res, next) => {
+    try {
+      const parsedEvent = {
+        eventDetails: JSON.parse(req.body.eventDetails),
+        vehicleInfo: JSON.parse(req.body.vehicleInfo),
+        cohosts: req.body.cohosts ? JSON.parse(req.body.cohosts) : [],
+      };
+
+      req.body = parsedEvent;
+
+      return editRequest(req, res, next);
+    } catch (error) {
+      console.error("Error parsing edit request:", error);
+      const message =
+        error instanceof Error ? error.message : "Unknown server error";
+
+      return res
+        .status(400)
+        .json({ message: "Invalid request", error: message });
+    }
+  }
+);
 router.post("/request/:event/approve", authorizeAdmin, approveRequest);
 
 router.get("/events", authorizeAdmin, getEvents);
@@ -79,6 +105,6 @@ router.get("/notifications", authorizeAdmin, getNotifications);
 router.get("/event/media/:event", authorizeAdmin, getEventMedia);
 
 router.delete("/event/:event/delete", deleteEvent);
-router.delete("/request/:request/delete", deleteEvent);
+router.delete("/request/:request/delete", deleteRequest);
 
 export default router;

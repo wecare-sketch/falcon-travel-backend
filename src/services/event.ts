@@ -271,7 +271,7 @@ const eventService = {
 
   editRequest: async (eventObject: EditRequestDts) => {
     const requestFound = await RequestRepository.findOne({
-      where: { slug: eventObject.event },
+      where: { slug: eventObject.request },
     });
 
     if (!requestFound) {
@@ -288,7 +288,7 @@ const eventService = {
     requestFound.passengerCount = eventObject.vehicleInfo.numberOfPassengers;
     requestFound.hoursReserved = eventObject.vehicleInfo.hoursReserved;
     requestFound.participants = eventObject.participants ?? [
-      requestFound.user.email,
+      requestFound?.user?.email,
     ];
 
     const newRequest = await RequestRepository.save(requestFound);

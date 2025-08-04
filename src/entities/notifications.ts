@@ -33,7 +33,12 @@ export class Notification {
   @ManyToOne(() => Event, (event) => event.notifications, { nullable: true })
   event!: Event;
 
-  @ManyToOne(() => EventRequest, { nullable: true })
+  @ManyToOne(
+    () => EventRequest,
+    { nullable: true,
+      onDelete: "CASCADE",
+    }
+  )
   request?: EventRequest;
 
   @CreateDateColumn()
