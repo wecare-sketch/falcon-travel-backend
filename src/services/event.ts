@@ -1,11 +1,6 @@
 import { AppDataSource } from "../config/db";
 import { Event } from "../entities/event";
-import {
-  AddEventDts,
-  EditEventDts,
-  PaymentDetails,
-  RequestEventDts,
-} from "../types/event";
+import { AddEventDts, EditEventDts, PaymentDetails } from "../types/event";
 import { generateSlug } from "../utils/slugify";
 import { EventParticipant } from "../entities/eventParticipant";
 import {
@@ -361,6 +356,7 @@ const eventService = {
 
       let [events, total] = await EventRepository.findAndCount({
         where: userId ? { participants: { user: { id: userId } } } : {},
+        relations: ["feedbacks"],
         order: { createdAt: "DESC" },
         skip,
         take: limit,
