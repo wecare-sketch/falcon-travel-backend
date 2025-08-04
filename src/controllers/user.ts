@@ -66,19 +66,31 @@ export const joinEvent = errorHandler(
 
 export const requestEvent = errorHandler(
   async (req: AuthenticatedRequest, res: Response) => {
-    const user = req.user!;
-    const { eventDetails, vehicleInfo, cohosts } = req.body as RequestEventDts;
-    const result = await userService.requestEvent(
-      {
-        eventDetails,
-        vehicleInfo,
-        cohosts,
-      },
-      user.email,
-      req
-    );
+    try {
+      const user = req.user!;
 
-    return res.json(result);
+      const parsedEvent = {
+        eventDetails: JSON.parse(req.body.eventDetails),
+        vehicleInfo: JSON.parse(req.body.vehicleInfo),
+        cohosts: req.body.cohosts ? JSON.parse(req.body.cohosts) : [],
+      };
+
+      const result = await userService.requestEvent(
+        parsedEvent,
+        user.email,
+        req
+      );
+
+      return res.status(200).json(result);
+    } catch (error) {
+      console.error("Error parsing or creating request event:", error);
+      const message =
+        error instanceof Error ? error.message : "Unknown server error";
+
+      return res
+        .status(400)
+        .json({ message: "Invalid request", error: message });
+    }
   }
 );
 
