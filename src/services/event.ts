@@ -328,14 +328,22 @@ const eventService = {
     page = 1,
     limit = 10,
     eventId,
+    search,
+    paymentStatus,
+    host,
+    isAdmin = false,
   }: {
     userId?: string;
     page?: number;
     limit?: number;
     eventId?: string;
+    search?: string;
+    paymentStatus?: PaymentStatus;
+    host?: string;
+    isAdmin?: boolean;
   }) => {
     if (eventId) {
-      let event = await EventRepository.findOne({
+      const event = await EventRepository.findOne({
         where: { id: eventId },
         relations: [
           "participants",
@@ -349,33 +357,52 @@ const eventService = {
 
       if (!event) throw new Error("Event not found!");
 
-      event = await eventService.checkAndUpdateEventExpiry(event);
+      const updatedEvent = await eventService.checkAndUpdateEventExpiry(event);
 
-      return { message: "success", data: { event } };
-    } else {
-      if (userId) {
-        await userService.findUserWithId(userId);
-      }
-
-      const skip = (page - 1) * limit;
-
-      let [events, total] = await EventRepository.findAndCount({
-        where: userId ? { participants: { user: { id: userId } } } : {},
-        relations: ["feedbacks"],
-        order: { createdAt: "DESC" },
-        skip,
-        take: limit,
-      });
-
-      events = await Promise.all(
-        events.map(eventService.checkAndUpdateEventExpiry)
-      );
-
-      return {
-        message: "success",
-        data: { total, page, limit, events },
-      };
+      return { message: "success", data: { event: updatedEvent } };
     }
+
+    const query = EventRepository.createQueryBuilder("event")
+      .leftJoinAndSelect("event.feedbacks", "feedbacks")
+      .orderBy("event.createdAt", "DESC")
+      .skip((page - 1) * limit)
+      .take(limit);
+
+    if (!isAdmin && userId) {
+      query
+        .innerJoin("event.participants", "participants")
+        .innerJoin("participants.user", "user")
+        .andWhere("user.id = :userId", { userId });
+    }
+
+    if (isAdmin) {
+      if (host) {
+        query.andWhere("event.host ILIKE :host", { host: `%${host}%` });
+      }
+      if (paymentStatus) {
+        query.andWhere("event.paymentStatus = :paymentStatus", {
+          paymentStatus,
+        });
+      }
+    }
+
+    if (search) {
+      query.andWhere(
+        "(event.name ILIKE :search OR event.clientName ILIKE :search)",
+        { search: `%${search}%` }
+      );
+    }
+
+    const [events, total] = await query.getManyAndCount();
+
+    const updatedEvents = await Promise.all(
+      events.map(eventService.checkAndUpdateEventExpiry)
+    );
+
+    return {
+      message: "success",
+      data: { total, page, limit, events: updatedEvents },
+    };
   },
 
   getNotifications: async ({

@@ -20,7 +20,6 @@ export async function createAdminUser() {
       email: adminEmail,
       password: hashedPassword,
       phoneNumber: "0000000000",
-      dateOfBirth: "1970-01-01",
       role: UserRole.ADMIN,
     });
 

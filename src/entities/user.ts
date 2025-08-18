@@ -26,9 +26,6 @@ export class User {
   @Column({ type: "varchar", length: 255, nullable: true })
   phoneNumber?: string;
 
-  @Column({ type: "varchar", length: 255, nullable: true })
-  dateOfBirth?: string;
-
   @Column({ type: "varchar", length: 255, unique: true })
   email!: string;
 

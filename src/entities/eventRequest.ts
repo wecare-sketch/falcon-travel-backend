@@ -38,8 +38,8 @@ export class EventRequest {
   @Column({ type: "date" })
   pickupDate!: string;
 
-  @Column({ type: "varchar", length: 500 })
-  location!: string;
+  @Column({ type: "jsonb" })
+  location!: string[];
 
   @Column({ type: "varchar", length: 255 })
   vehicle!: string;

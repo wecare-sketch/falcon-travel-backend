@@ -8,11 +8,10 @@ import eventService from "../services/event";
 export const addDetails = errorHandler(
   async (req: AuthenticatedRequest, res: Response) => {
     const user = req.user!;
-    const { fullName, dob, phone } = req.body;
+    const { fullName, phone } = req.body;
 
     const result = await userService.addUserDetails(
       fullName,
-      dob,
       phone,
       user.email
     );
@@ -66,31 +65,19 @@ export const joinEvent = errorHandler(
 
 export const requestEvent = errorHandler(
   async (req: AuthenticatedRequest, res: Response) => {
-    try {
-      const user = req.user!;
+    const user = req.user!;
+    const { eventDetails, vehicleInfo, cohosts } = req.body as RequestEventDts;
+    const result = await userService.requestEvent(
+      {
+        eventDetails,
+        vehicleInfo,
+        cohosts,
+      },
+      user.email,
+      req
+    );
 
-      const parsedEvent = {
-        eventDetails: JSON.parse(req.body.eventDetails),
-        vehicleInfo: JSON.parse(req.body.vehicleInfo),
-        cohosts: req.body.cohosts ? JSON.parse(req.body.cohosts) : [],
-      };
-
-      const result = await userService.requestEvent(
-        parsedEvent,
-        user.email,
-        req
-      );
-
-      return res.status(200).json(result);
-    } catch (error) {
-      console.error("Error parsing or creating request event:", error);
-      const message =
-        error instanceof Error ? error.message : "Unknown server error";
-
-      return res
-        .status(400)
-        .json({ message: "Invalid request", error: message });
-    }
+    return res.json(result);
   }
 );
 
@@ -102,16 +89,18 @@ export const getEvents = errorHandler(
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
 
-    const userId = user.id as string;
-
-    const eventId = req.query.eventId as string | undefined;
+    const eventId = req.query.eventId as string | undefined
+    const search = req.query.search as string | undefined
 
     const result = await eventService.getEvents({
-      userId,
+      userId: user.id,
       page,
       limit,
-      eventId,
+      eventId: eventId,
+      search: search,
+      isAdmin: false,
     });
+
     return res.json(result);
   }
 );

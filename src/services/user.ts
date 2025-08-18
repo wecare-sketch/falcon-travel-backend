@@ -21,7 +21,7 @@ import { EventMedia } from "../entities/eventMedia";
 import { mediaHandler } from "../utils/mediaHandler";
 import { Request } from "express";
 import { EventFeedback } from "../entities/eventFeedback";
-import { getIO } from "../config/socket";
+// import { getIO } from "../config/socket";
 import { Notification } from "../entities/notifications";
 import notificationService from "./notification";
 import { NotificationInputDts } from "../types/notification";
@@ -76,16 +76,10 @@ const userService = {
     return await userService.handleUserRegistration(email, null, inviteToken);
   },
 
-  addUserDetails: async (
-    fullName: string,
-    dob: string,
-    phone: string,
-    email: string
-  ) => {
+  addUserDetails: async (fullName: string, phone: string, email: string) => {
     const userExists = await userService.findUserWithEmail(email);
 
     userExists.fullName = fullName;
-    userExists.dateOfBirth = dob;
     userExists.phoneNumber = phone;
 
     await UserRepository.save(userExists);
@@ -115,11 +109,15 @@ const userService = {
     return { message: "success", data: jwtToken };
   },
 
-  loginWithOAuth: async (user: User) => {
+  loginWithOAuth: async (user: User, token?: string) => {
     const payload = { id: user.id, email: user.email, role: user.role };
     const jwtToken = jwt.sign(payload, process.env.JWT_SECRET_KEY!, {
       expiresIn: process.env.JWT_EXPIRY || "7d",
     } as SignOptions);
+
+    if (token) {
+      await userService.joinEvent(token, user.email);
+    }
 
     return { message: "success", data: jwtToken };
   },
@@ -513,46 +511,46 @@ const userService = {
     return exists;
   },
 
- getAllMediaFromEvent: async ({
-  userId,
-  page = 1,
-  limit = 10,
-  eventId,
-}: {
-  userId?: string;
-  page?: number;
-  limit?: number;
-  eventId: string;
-}) => {
-  if (!eventId) throw new Error("Event ID is required!");
+  getAllMediaFromEvent: async ({
+    userId,
+    page = 1,
+    limit = 10,
+    eventId,
+  }: {
+    userId?: string;
+    page?: number;
+    limit?: number;
+    eventId: string;
+  }) => {
+    if (!eventId) throw new Error("Event ID is required!");
 
-  const event = await EventRepository.findOne({ where: { id: eventId } });
-  if (!event) throw new Error("Event does not exist!");
+    const event = await EventRepository.findOne({ where: { id: eventId } });
+    if (!event) throw new Error("Event does not exist!");
 
-  const skip = (page - 1) * limit;
+    const skip = (page - 1) * limit;
 
-  const where: any = { event: { id: eventId } };
-  if (userId) {
-    where.user = { id: userId };
-  }
+    const where: any = { event: { id: eventId } };
+    if (userId) {
+      where.user = { id: userId };
+    }
 
-  const [media, total] = await MediaRepository.findAndCount({
-    where,
-    relations: ["user", "event"], 
-    order: { createdAt: "DESC" },
-    skip,
-    take: limit,
-  });
+    const [media, total] = await MediaRepository.findAndCount({
+      where,
+      relations: ["user", "event", "user.id", "event.id"],
+      order: { createdAt: "DESC" },
+      skip,
+      take: limit,
+    });
 
-  return {
-    message: "success",
-    data: {
-      media,
-      total,
-      page,
-      pages: Math.ceil(total / limit),
-    },
-  };
+    return {
+      message: "success",
+      data: {
+        media,
+        total,
+        page,
+        pages: Math.ceil(total / limit),
+      },
+    };
   },
 };
 

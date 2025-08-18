@@ -38,7 +38,7 @@ interface EventDetails {
   pickupDate: string;
   dropOffDate: string;
   pickupTime: string;
-  location: string;
+  location: string[];
   stops: string[];
 }
 

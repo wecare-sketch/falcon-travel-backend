@@ -9,6 +9,7 @@ import {
 } from "../types/event";
 import eventService from "../services/event";
 import userService from "../services/user";
+import { PaymentStatus } from "../constants/enums";
 
 export const addEvent = errorHandler(
   async (req: AuthenticatedRequest, res: Response) => {
@@ -143,14 +144,19 @@ export const getEvents = errorHandler(
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
 
-    const userId = req.query.userId as string | undefined;
     const eventId = req.query.eventId as string | undefined;
+    const search = req.query.search as string | undefined;
+    const paymentStatus = req.query.paymentStatus as PaymentStatus | undefined;
+    const host = req.query.host as string | undefined;
 
     const result = await eventService.getEvents({
-      userId,
       page,
       limit,
-      eventId,
+      eventId: eventId,
+      search: search,
+      paymentStatus: paymentStatus,
+      host: host,
+      isAdmin: true,
     });
 
     return res.json(result);

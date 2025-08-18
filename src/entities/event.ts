@@ -5,6 +5,7 @@ import {
   CreateDateColumn,
   OneToMany,
   UpdateDateColumn,
+  DeleteDateColumn,
 } from "typeorm";
 import { EventParticipant } from "./eventParticipant";
 import { EventStatus, PaymentStatus } from "../constants/enums";
@@ -40,8 +41,8 @@ export class Event {
   @Column({ type: "date" })
   pickupDate!: string;
 
-  @Column({ type: "varchar", length: 500 })
-  location!: string;
+  @Column({ type: "jsonb" })
+  location!: string[];
 
   @Column({ type: "varchar", length: 255 })
   vehicle!: string;
@@ -77,7 +78,7 @@ export class Event {
   updatedAt!: Date;
 
   @Column({ type: "timestamp", nullable: true })
-  expiresAt?: Date | null;
+  expiresAt?: Date;
 
   @Column({ type: "varchar", length: 255, nullable: true })
   host?: string;
@@ -88,7 +89,9 @@ export class Event {
   @OneToMany(() => EventParticipant, (ep) => ep.event, { cascade: true })
   participants?: EventParticipant[];
 
-  @OneToMany(() => EventFeedback, (feedback) => feedback.event, { cascade: true })
+  @OneToMany(() => EventFeedback, (feedback) => feedback.event, {
+    cascade: true,
+  })
   feedbacks?: EventFeedback[];
 
   @OneToMany(() => Notification, (notif) => notif.event, { cascade: true })
