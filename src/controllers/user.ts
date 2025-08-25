@@ -66,12 +66,14 @@ export const joinEvent = errorHandler(
 export const requestEvent = errorHandler(
   async (req: AuthenticatedRequest, res: Response) => {
     const user = req.user!;
-    const { eventDetails, vehicleInfo, cohosts } = req.body as RequestEventDts;
+    const { eventDetails, vehicleInfo, cohosts, tripNotes } =
+      req.body as RequestEventDts;
     const result = await userService.requestEvent(
       {
         eventDetails,
         vehicleInfo,
         cohosts,
+        tripNotes,
       },
       user.email,
       req
@@ -89,8 +91,8 @@ export const getEvents = errorHandler(
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
 
-    const eventId = req.query.eventId as string | undefined
-    const search = req.query.search as string | undefined
+    const eventId = req.query.eventId as string | undefined;
+    const search = req.query.search as string | undefined;
 
     const result = await eventService.getEvents({
       userId: user.id,

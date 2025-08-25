@@ -27,6 +27,7 @@ import notificationService from "./notification";
 import { NotificationInputDts } from "../types/notification";
 import { AuthenticatedRequest } from "../types/request";
 import { mediaHandler } from "../utils/mediaHandler";
+import { In } from "typeorm";
 
 const RequestRepository = AppDataSource.getRepository(EventRequest);
 const NotificationRepository = AppDataSource.getRepository(Notification);
@@ -64,6 +65,7 @@ const eventService = {
       phoneNumber: event.eventDetails.phoneNumber,
       pickupDate: event.eventDetails.pickupDate,
       location: event.eventDetails.location,
+      stops: event.eventDetails.stops,
       vehicle: event.vehicleInfo.vehicleName,
       passengerCount: event.vehicleInfo.numberOfPassengers,
       hoursReserved: event.vehicleInfo.hoursReserved,
@@ -71,6 +73,7 @@ const eventService = {
       pendingAmount: event.paymentDetails.pendingAmount,
       depositAmount: depositAmount,
       equityDivision: event.paymentDetails.equityDivision,
+      tripNotes: event.tripNotes,
       slug: slug,
     });
 
@@ -80,8 +83,18 @@ const eventService = {
   },
 
   createEvent: async (host: string, cohosts: string[], event: string) => {
+    console.log("slug", event);
+    console.log(
+      "event",
+      await EventRepository.findOne({
+        where: { slug: event },
+      })
+    );
     const eventFound = await EventRepository.findOne({
-      where: { slug: event },
+      where: {
+        slug: event,
+        eventStatus: In([EventStatus.PENDING, EventStatus.STARTED]),
+      },
     });
 
     if (!eventFound) {
@@ -156,6 +169,7 @@ const eventService = {
       phoneNumber: requestFound.phoneNumber,
       pickupDate: requestFound.pickupDate,
       location: requestFound.location,
+      stops: requestFound.stops,
       vehicle: requestFound.vehicle,
       passengerCount: requestFound.passengerCount,
       hoursReserved: requestFound.hoursReserved,
@@ -288,8 +302,9 @@ const eventService = {
     requestFound.vehicle = eventObject.vehicleInfo.vehicleName;
     requestFound.passengerCount = eventObject.vehicleInfo.numberOfPassengers;
     requestFound.hoursReserved = eventObject.vehicleInfo.hoursReserved;
+    requestFound.tripNotes = eventObject.tripNotes;
     requestFound.participants = eventObject.participants ?? [
-     requestFound?.user?.email,
+      requestFound.user.email,
     ];
 
     const newRequest = await RequestRepository.save(requestFound);
@@ -414,7 +429,9 @@ const eventService = {
         "event.slug",
         "event.eventStatus",
         "event.pickupDate",
+        "event.host",
         "event.location",
+        "event.stops",
         "event.vehicle",
         "event.passengerCount",
         "event.expiresAt",
@@ -443,7 +460,8 @@ const eventService = {
       },
 
       routeDetails: {
-        route: updatedEvent.location,
+        location: updatedEvent.location,
+        route: updatedEvent.stops,
       },
 
       vehicleInfo: {
@@ -609,7 +627,6 @@ const eventService = {
 
     return { message: "success", data: {} };
   },
-
 };
 
 export default eventService;

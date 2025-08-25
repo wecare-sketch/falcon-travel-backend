@@ -56,7 +56,7 @@ export class User {
   @OneToMany(() => EventRequest, (request) => request.user)
   eventRequests?: EventRequest[];
 
-  @OneToMany(() => EventMedia, (media) => media.event)
+  @OneToMany(() => EventMedia, (media) => media.user)
   media?: EventMedia[];
 
   @Column({ type: "varchar", nullable: true, unique: true })

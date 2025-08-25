@@ -6,6 +6,7 @@ import {
   ApproveRequestDts,
   CreateEventDts,
   EditEventDts,
+  EditRequestDts,
 } from "../types/event";
 import eventService from "../services/event";
 import userService from "../services/user";
@@ -13,13 +14,14 @@ import { PaymentStatus } from "../constants/enums";
 
 export const addEvent = errorHandler(
   async (req: AuthenticatedRequest, res: Response) => {
-    const { eventDetails, vehicleInfo, paymentDetails } =
+    const { eventDetails, vehicleInfo, paymentDetails, tripNotes } =
       req.body as AddEventDts;
     const result = await eventService.addEvent(
       {
         eventDetails,
         vehicleInfo,
         paymentDetails,
+        tripNotes,
       },
       req
     );
@@ -52,7 +54,7 @@ export const createEvent = errorHandler(
 
 export const editEvent = errorHandler(
   async (req: AuthenticatedRequest, res: Response) => {
-    const { eventDetails, vehicleInfo, paymentDetails } =
+    const { eventDetails, vehicleInfo, paymentDetails, tripNotes } =
       req.body as EditEventDts;
 
     const { event } = req.params;
@@ -61,6 +63,7 @@ export const editEvent = errorHandler(
       eventDetails,
       vehicleInfo,
       paymentDetails,
+      tripNotes
     });
     return res.json(result);
   }
@@ -68,7 +71,7 @@ export const editEvent = errorHandler(
 
 export const editRequest = errorHandler(
   async (req: AuthenticatedRequest, res: Response) => {
-    const { eventDetails, vehicleInfo } = req.body as EditEventDts;
+    const { eventDetails, vehicleInfo, tripNotes } = req.body as EditRequestDts;
 
     const { request } = req.params;
 
@@ -76,6 +79,7 @@ export const editRequest = errorHandler(
       eventDetails,
       vehicleInfo,
       request,
+      tripNotes,
     });
     return res.json(result);
   }

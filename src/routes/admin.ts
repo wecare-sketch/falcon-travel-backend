@@ -36,6 +36,7 @@ router.post(
         eventDetails: JSON.parse(req.body.eventDetails),
         vehicleInfo: JSON.parse(req.body.vehicleInfo),
         paymentDetails: JSON.parse(req.body.paymentDetails),
+        tripNotes: JSON.parse(req.body.tripNotes)
       };
 
       const result = await eventService.addEvent(parsedEvent, req);
@@ -61,6 +62,7 @@ router.patch(
         eventDetails: JSON.parse(req.body.eventDetails),
         vehicleInfo: JSON.parse(req.body.vehicleInfo),
         paymentDetails: JSON.parse(req.body.paymentDetails),
+        tripNotes: JSON.parse(req.body.tripNotes)
       };
 
       const result = await eventService.editEvent(

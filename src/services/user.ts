@@ -153,6 +153,7 @@ const userService = {
       phoneNumber: event.eventDetails.phoneNumber,
       pickupDate: event.eventDetails.pickupDate,
       location: event.eventDetails.location,
+      stops: event.eventDetails.stops,
       vehicle: event.vehicleInfo.vehicleName,
       passengerCount: event.vehicleInfo.numberOfPassengers,
       hoursReserved: event.vehicleInfo.hoursReserved,
@@ -160,6 +161,7 @@ const userService = {
       cohosts: event.cohosts,
       participants: [email, ...event.cohosts],
       user: user,
+      tripNotes: event.tripNotes,
       slug: slug,
     });
 

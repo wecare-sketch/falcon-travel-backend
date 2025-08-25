@@ -41,8 +41,11 @@ export class Event {
   @Column({ type: "date" })
   pickupDate!: string;
 
+  @Column({ type: "varchar", length: 255 })
+  location!: string;
+
   @Column({ type: "jsonb" })
-  location!: string[];
+  stops!: string[];
 
   @Column({ type: "varchar", length: 255 })
   vehicle!: string;
@@ -82,6 +85,9 @@ export class Event {
 
   @Column({ type: "varchar", length: 255, nullable: true })
   host?: string;
+
+  @Column({ type: "varchar", length: 255, nullable: true })
+  tripNotes?: string;
 
   @Column({ type: "jsonb", nullable: true })
   cohosts?: string[];

@@ -4,6 +4,7 @@ export interface AddEventDts {
   eventDetails: EventDetails;
   vehicleInfo: VehicleInfo;
   paymentDetails: PaymentDetails;
+  tripNotes: string;
 }
 
 export interface EditEventDts extends AddEventDts {
@@ -16,6 +17,7 @@ export interface EditRequestDts {
   vehicleInfo: VehicleInfo;
   request: string;
   participants?: string[];
+  tripNotes: string;
 }
 
 export interface CreateEventDts {
@@ -28,6 +30,7 @@ export interface RequestEventDts {
   eventDetails: EventDetails;
   vehicleInfo: VehicleInfo;
   cohosts: string[];
+  tripNotes: string;
 }
 
 export interface ApproveRequestDts extends PaymentDetails {}
@@ -40,7 +43,7 @@ interface EventDetails {
   pickupDate: string;
   dropOffDate: string;
   pickupTime: string;
-  location: string[];
+  location: string;
   stops: string[];
 }
 
@@ -65,6 +68,7 @@ export interface SharedEventResponse {
     phone: string;
   };
   routeDetails: {
+    location: string;
     route: string[];
   };
   vehicleInfo: {

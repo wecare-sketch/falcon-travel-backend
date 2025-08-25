@@ -52,7 +52,7 @@ const dashboardService = {
   },
 
   getUpcomingEvents: async ({ limit }: { limit: number }) => {
-    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    const today = new Date().toISOString().slice(0, 10);
 
     const rows = await EventRepository.createQueryBuilder("event")
       .select([
@@ -115,7 +115,6 @@ const dashboardService = {
         from: new Date(from),
       }).andWhere("transaction.paidAt < :to", { to: new Date(to) });
     } else {
-      // First day of the month (months-1) months ago
       const now = new Date();
       const startDate = new Date(
         now.getFullYear(),
