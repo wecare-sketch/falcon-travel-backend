@@ -5,6 +5,7 @@ import {
   EditEventDts,
   EditRequestDts,
   PaymentDetails,
+  SharedEventResponse,
 } from "../types/event";
 import { generateSlug } from "../utils/slugify";
 import { EventParticipant } from "../entities/eventParticipant";
@@ -288,7 +289,7 @@ const eventService = {
     requestFound.passengerCount = eventObject.vehicleInfo.numberOfPassengers;
     requestFound.hoursReserved = eventObject.vehicleInfo.hoursReserved;
     requestFound.participants = eventObject.participants ?? [
-      requestFound?.user?.email,
+     requestFound?.user?.email,
     ];
 
     const newRequest = await RequestRepository.save(requestFound);
@@ -403,6 +404,58 @@ const eventService = {
       message: "success",
       data: { total, page, limit, events: updatedEvents },
     };
+  },
+
+  getSharedEvent: async ({ slug }: { slug: string }) => {
+    const event = await EventRepository.createQueryBuilder("event")
+      .leftJoinAndSelect("event.messages", "messages")
+      .where("event.slug = :slug", { slug })
+      .select([
+        "event.slug",
+        "event.eventStatus",
+        "event.pickupDate",
+        "event.location",
+        "event.vehicle",
+        "event.passengerCount",
+        "event.expiresAt",
+        "messages.message",
+      ])
+      .getOne();
+
+    if (!event) {
+      throw new Error("Event not found!");
+    }
+
+    const updatedEvent = await eventService.checkAndUpdateEventExpiry(event);
+
+    const user = await userService.findUserWithEmail(updatedEvent.host!);
+
+    const msgs = updatedEvent.messages?.map((msg) => msg.message) ?? [];
+
+    const additionalData: SharedEventResponse = {
+      trip_id: updatedEvent.slug,
+      status: updatedEvent.eventStatus,
+      ETA: updatedEvent.pickupDate,
+
+      passengerInfo: {
+        name: user.fullName!,
+        phone: user.phoneNumber!,
+      },
+
+      routeDetails: {
+        route: updatedEvent.location,
+      },
+
+      vehicleInfo: {
+        name: updatedEvent.vehicle,
+        passengerCount: updatedEvent.passengerCount,
+        hoursLocked: updatedEvent.expiresAt!,
+      },
+
+      tripNotes: msgs,
+    };
+
+    return { message: "success", data: additionalData };
   },
 
   getNotifications: async ({
@@ -556,6 +609,7 @@ const eventService = {
 
     return { message: "success", data: {} };
   },
+
 };
 
 export default eventService;

@@ -10,6 +10,7 @@ import { createAdminUser } from "./scripts/createAdmin";
 
 import userRoutes from "./routes/user";
 import adminRoutes from "./routes/admin";
+import sharedRoutes from "./routes/shared";
 import authRoutes from "./routes/auth";
 import otpRoutes from "./routes/otp";
 import webhookHandler from "./routes/webhook";
@@ -38,7 +39,6 @@ app.use("/api/webhook", express.raw({ type: "application/json" }), webhookHandle
 
 // Global middleware
 app.use(express.json());
-app.use(globalLimiter);
 app.use(morgan("dev"));
 
 // DataSource init
@@ -82,6 +82,8 @@ app.use(async (_req, _res, next) => {
     next(e);
   }
 });
+
+app.use("/api", sharedRoutes);
 
 // Routes
 app.use("/api/user", userRoutes);

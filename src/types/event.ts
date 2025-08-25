@@ -1,3 +1,5 @@
+import { EventStatus, EventType } from "../constants/enums";
+
 export interface AddEventDts {
   eventDetails: EventDetails;
   vehicleInfo: VehicleInfo;
@@ -52,4 +54,23 @@ export interface PaymentDetails {
   totalAmount: number;
   pendingAmount: number;
   equityDivision: number;
+}
+
+export interface SharedEventResponse {
+  trip_id: string;
+  status: string;
+  ETA: string;
+  passengerInfo: {
+    name: string;
+    phone: string;
+  };
+  routeDetails: {
+    route: string[];
+  };
+  vehicleInfo: {
+    name: string;
+    passengerCount: number;
+    hoursLocked: Date;
+  };
+  tripNotes: string[];
 }

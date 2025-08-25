@@ -139,6 +139,18 @@ export const deleteRequest = errorHandler(
   }
 );
 
+export const getSharedEvent = errorHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const { event } = req.params;
+
+    const result = await eventService.getSharedEvent({
+      slug: event,
+    });
+
+    return res.json(result);
+  }
+);
+
 export const getEvents = errorHandler(
   async (req: AuthenticatedRequest, res: Response) => {
     const page = parseInt(req.query.page as string) || 1;

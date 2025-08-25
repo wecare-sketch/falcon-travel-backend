@@ -536,7 +536,7 @@ const userService = {
 
     const [media, total] = await MediaRepository.findAndCount({
       where,
-      relations: ["user", "event", "user.id", "event.id"],
+      relations: ["user", "event"],
       order: { createdAt: "DESC" },
       skip,
       take: limit,

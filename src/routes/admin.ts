@@ -13,8 +13,15 @@ import { authenticateToken } from "../middlewares/auth";
 import { authorizeAdmin } from "../middlewares/authAdmin";
 import { getNotifications } from "../controllers/user";
 import { uploadSingleImage } from "../config/multer";
+import {
+  getKpis,
+  getUpcoming,
+  getPaymentStatus,
+  getMonthlyTargets,
+  getRecentActivities,
+  getDashboardTotal,
+} from "../controllers/dashboard";
 import eventService from "../services/event";
-
 const router = express.Router();
 
 router.use(authenticateToken);
@@ -106,5 +113,12 @@ router.get("/event/media/:event", authorizeAdmin, getEventMedia);
 
 router.delete("/event/:event/delete", deleteEvent);
 router.delete("/request/:request/delete", deleteRequest);
+
+router.get("/dashboard/kpis", authorizeAdmin, getKpis);
+router.get("/dashboard/upcoming", authorizeAdmin, getUpcoming);
+router.get("/dashboard/payment-status", authorizeAdmin, getPaymentStatus);
+router.get("/dashboard/monthly-targets", authorizeAdmin, getMonthlyTargets);
+router.get("/dashboard/activities", authorizeAdmin, getRecentActivities);
+router.get("/dashboard", authorizeAdmin, getDashboardTotal);
 
 export default router;
