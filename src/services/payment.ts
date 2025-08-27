@@ -6,6 +6,7 @@ import eventService from "./event";
 import userService from "./user";
 import { NotificationInputDts } from "../types/notification";
 import notificationService from "./notification";
+
 import {
   EventStatus,
   notificationType,
@@ -39,17 +40,18 @@ const paymentService = {
     //   throw new Error(`This Event hasn't started yet!`);
     // }
 
-    const now = new Date(Date.now());
-    const expiryDate = new Date(
-      new Date(event.updatedAt).getTime() + event.hoursReserved * 60 * 60 * 1000
-    );
-    const hasExpired = now >= expiryDate;
+    // const now = new Date(Date.now());
+    // const expiryDate = new Date(
+    //   new Date(event.updatedAt).getTime() + event.hoursReserved * 60 * 60 * 1000
+    // );
+    // const hasExpired = now >= expiryDate;
 
-    if (hasExpired) {
-      event.eventStatus = EventStatus.EXPIRED;
-      await EventRepository.save(event);
-      throw new Error(`This Event has already expired!`);
-    }
+    // if (hasExpired) {
+    //   event.eventStatus = EventStatus.EXPIRED;
+    //   await EventRepository.save(event);
+    //   throw new Error(`This Event has already expired!`);
+    // }
+
 
     if (event.paymentStatus === PaymentStatus.PAID) {
       throw new Error("Event Already Paid For!");
@@ -61,26 +63,42 @@ const paymentService = {
 
     amount = amount * 100;
 
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: amount,
-      currency: "usd",
-      automatic_payment_methods: { enabled: true, allow_redirects: "never" },
+  
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: [ "card" ],
+      line_items: [
+        {
+          price_data: {
+            currency: "usd",
+            product_data: {
+              name: event.name,
+            },
+            unit_amount: amount,
+            
+          },
+          quantity: 1,
+        },
+      ],
+      mode: "payment", 
+      success_url: `${process.env.CLIENT_URL}`,
+      cancel_url: `${process.env.CLIENT_URL}`, 
+    
     });
 
     const newTransaction = TransactionRepository.create({
-      paymentID: paymentIntent.id as string,
-      amountIntended: paymentIntent.amount as number,
-      currency: paymentIntent.currency as string,
+      paymentID: session.id,
+      amountIntended: amount,
+      currency: "usd",
       status: PaymentStatus.PENDING,
-      user: user,
-      event: event,
+      user,
+      event,
     });
 
     await TransactionRepository.save(newTransaction);
 
     return {
       message: "success",
-      data: { payment_Hash: paymentIntent.client_secret },
+      data: { sessionId: session.id },
     };
   },
 

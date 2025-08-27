@@ -90,7 +90,7 @@ app.use("/api/user", userRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/otp", otpLimiter, otpRoutes);
-// app.use("/api/billing", paymentRoutes);
+app.use("/api/payment", paymentRoutes);
 
 // Error handler
 app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
