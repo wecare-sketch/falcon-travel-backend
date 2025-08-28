@@ -80,8 +80,8 @@ const paymentService = {
         },
       ],
       mode: "payment", 
-      success_url: `${process.env.CLIENT_URL}`,
-      cancel_url: `${process.env.CLIENT_URL}`, 
+      success_url: `${process.env.STRIPE_RETURN_URL}`,
+      cancel_url: `${process.env.STRIPE_RETURN_URL}`, 
     
     });
 
