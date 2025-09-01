@@ -25,80 +25,66 @@ const paymentService = {
     if (amount <= 0) {
       throw new Error("Invalid Amount!");
     }
-
+  
     const user = await userService.findUserWithEmail(email);
     const event = await eventService.getEventBySlug(slug);
     const eventParticipant = await EventParticipantRepository.findOne({
       where: { email: user.email, event: { slug: slug } },
     });
-
+  
     if (!eventParticipant) {
       throw new Error("Participant does not exist!");
     }
-
-    // if (event.eventStatus !== EventStatus.STARTED) {
-    //   throw new Error(`This Event hasn't started yet!`);
-    // }
-
-    // const now = new Date(Date.now());
-    // const expiryDate = new Date(
-    //   new Date(event.updatedAt).getTime() + event.hoursReserved * 60 * 60 * 1000
-    // );
-    // const hasExpired = now >= expiryDate;
-
-    // if (hasExpired) {
-    //   event.eventStatus = EventStatus.EXPIRED;
-    //   await EventRepository.save(event);
-    //   throw new Error(`This Event has already expired!`);
-    // }
-
-
+  
     if (event.paymentStatus === PaymentStatus.PAID) {
       throw new Error("Event Already Paid For!");
     }
-
+  
     if (eventParticipant.paymentStatus === PaymentStatus.PAID) {
       throw new Error("Unable to process this payment");
     }
-
-    amount = amount * 100;
-
   
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: [ "card" ],
-      line_items: [
-        {
-          price_data: {
-            currency: "usd",
-            product_data: {
-              name: event.name,
-            },
-            unit_amount: amount,
-            
-          },
-          quantity: 1,
-        },
-      ],
-      mode: "payment", 
-      success_url: `${process.env.STRIPE_RETURN_URL}`,
-      cancel_url: `${process.env.STRIPE_RETURN_URL}`, 
-    
+    // Convert amount to cents for Stripe
+    const amountInCents = Math.round(amount * 100);
+  
+    // Create PaymentIntent with automatic payment methods enabled
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: amountInCents,
+      currency: "usd",
+      metadata: {
+        eventSlug: slug,
+        eventName: event.name,
+        userEmail: email,
+        userId: user.id,
+        eventId: event.id,
+      },
+      // Enable automatic payment methods (includes wallets)
+      automatic_payment_methods: { enabled: true },
+      // Optional: Add receipt email
+      receipt_email: email,
+      // Optional: Add description
+      description: `Payment for event: ${event.name}`,
     });
-
+  
+    // Create transaction record
     const newTransaction = TransactionRepository.create({
-      paymentID: session.id,
-      amountIntended: amount,
+      paymentID: paymentIntent.id,
+      amountIntended: amountInCents,
       currency: "usd",
       status: PaymentStatus.PENDING,
       user,
       event,
     });
-
+  
     await TransactionRepository.save(newTransaction);
-
+  
     return {
       message: "success",
-      data: { sessionId: session.id },
+      data: {
+        clientSecret: paymentIntent.client_secret,
+        paymentIntentId: paymentIntent.id,
+        sessionId: paymentIntent.id,
+      },
     };
   },
 

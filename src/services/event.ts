@@ -445,7 +445,7 @@ const eventService = {
 
     const updatedEvent = await eventService.checkAndUpdateEventExpiry(event);
 
-    const user = await userService.findUserWithEmail(updatedEvent.id!);
+    const user = await userService.findUserWithId(updatedEvent.id!);
 
     const msgs = updatedEvent.messages?.map((msg) => msg.message) ?? [];
 
