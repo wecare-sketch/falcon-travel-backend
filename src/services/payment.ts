@@ -69,7 +69,7 @@ const paymentService = {
     // Create transaction record
     const newTransaction = TransactionRepository.create({
       paymentID: paymentIntent.id,
-      amountIntended: amountInCents,
+      amountIntended: amount, // Store in dollars, not cents
       currency: "usd",
       status: PaymentStatus.PENDING,
       user,
@@ -114,7 +114,17 @@ const paymentService = {
     );
 
     transaction.status = payment.status;
-    transaction.amountReceived = payment.amount_received;
+    // Convert Stripe amount from cents to dollars before storing
+    const amountInDollars = Math.round(payment.amount_received / 100);
+    console.log(`Stripe amount: ${payment.amount_received} cents = $${amountInDollars}`);
+    
+    // Validate the amount is reasonable (should be between $0.01 and $10,000)
+    if (amountInDollars < 0.01 || amountInDollars > 10000) {
+      console.error(`Invalid amount received: $${amountInDollars} (${payment.amount_received} cents)`);
+      return;
+    }
+    
+    transaction.amountReceived = amountInDollars;
     transaction.paymentMethod = payment_method.card?.brand;
 
     await TransactionRepository.save(transaction);
@@ -187,6 +197,7 @@ const paymentService = {
 
   processPayment: async (email: string, amount: number, eventIdentifier: string) => {
     console.log(`processPayment called with: email=${email}, amount=${amount}, eventIdentifier=${eventIdentifier}`);
+    console.log(`Amount to be added: $${amount} (should be in dollars)`);
     
     // Check if eventIdentifier is an eventId (UUID) or eventSlug
     const isEventId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(eventIdentifier);
@@ -248,6 +259,8 @@ const paymentService = {
     if (event) {
       if (eventParticipant) {
         console.log(`Processing payment for participant: ${eventParticipant.email} in event: ${event.name}`);
+        console.log(`Before payment - Participant deposited: $${eventParticipant.depositedAmount}, Event deposit: $${event.depositAmount}, Event pending: $${event.pendingAmount}`);
+        
         eventParticipant.depositedAmount =
           eventParticipant.depositedAmount + amount;
 
@@ -256,6 +269,17 @@ const paymentService = {
         }
 
         await EventParticipantRepository.save(eventParticipant);
+        
+        event.depositAmount = event.depositAmount + amount;
+        event.pendingAmount = event.pendingAmount - amount;
+
+        if (event.pendingAmount <= 0) {
+          event.paymentStatus = PaymentStatus.PAID;
+        }
+
+        await EventRepository.save(event);
+        
+        console.log(`After payment - Participant deposited: $${eventParticipant.depositedAmount}, Event deposit: $${event.depositAmount}, Event pending: $${event.pendingAmount}`);
       } else {
         // Let's also check what participants exist for this event
         const allParticipants = await EventParticipantRepository.find({
@@ -266,15 +290,6 @@ const paymentService = {
         
         throw new Error(`Participant not Found! Email: ${email}, Event: ${eventIdentifier}`);
       }
-
-      event.depositAmount = event.depositAmount + amount;
-      event.pendingAmount = event.pendingAmount - amount;
-
-      if (event.pendingAmount <= 0) {
-        event.paymentStatus = PaymentStatus.PAID;
-      }
-
-      await EventRepository.save(event);
     } else {
       throw new Error(`Event not Found! Identifier: ${eventIdentifier}`);
     }
