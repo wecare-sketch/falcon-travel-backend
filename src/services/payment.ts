@@ -186,6 +186,8 @@ const paymentService = {
   },
 
   processPayment: async (email: string, amount: number, eventIdentifier: string) => {
+    console.log(`processPayment called with: email=${email}, amount=${amount}, eventIdentifier=${eventIdentifier}`);
+    
     // Check if eventIdentifier is an eventId (UUID) or eventSlug
     const isEventId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(eventIdentifier);
     
@@ -194,24 +196,58 @@ const paymentService = {
     
     if (isEventId) {
       // eventIdentifier is an eventId
+      console.log(`Looking up event by ID: ${eventIdentifier}`);
       event = await EventRepository.findOne({ where: { id: eventIdentifier } });
       if (event) {
+        console.log(`Event found by ID: ${event.name} (${event.slug})`);
         eventParticipant = await EventParticipantRepository.findOne({
           where: { email: email, event: { id: eventIdentifier } },
         });
+        if (eventParticipant) {
+          console.log(`Participant found by ID lookup: ${eventParticipant.email}`);
+        } else {
+          console.log(`No participant found by ID lookup for email: ${email}`);
+        }
+      } else {
+        console.log(`No event found by ID: ${eventIdentifier}`);
       }
     } else {
       // eventIdentifier is an eventSlug
+      console.log(`Looking up event by slug: ${eventIdentifier}`);
       event = await EventRepository.findOne({ where: { slug: eventIdentifier } });
       if (event) {
+        console.log(`Event found by slug: ${event.name} (${event.id})`);
         eventParticipant = await EventParticipantRepository.findOne({
           where: { email: email, event: { slug: eventIdentifier } },
         });
+        if (eventParticipant) {
+          console.log(`Participant found by slug lookup: ${eventParticipant.email}`);
+        } else {
+          console.log(`No participant found by slug lookup for email: ${email}`);
+        }
+      } else {
+        console.log(`No event found by slug: ${eventIdentifier}`);
+      }
+    }
+    
+    // Fallback: If event not found by ID/slug, try to find it by user email
+    if (!event || !eventParticipant) {
+      console.log(`Fallback: Looking for event by user email: ${email}`);
+      const participantWithEvent = await EventParticipantRepository.findOne({
+        where: { email: email },
+        relations: ['event']
+      });
+      
+      if (participantWithEvent && participantWithEvent.event) {
+        console.log(`Fallback: Found event by user email: ${participantWithEvent.event.name} (${participantWithEvent.event.id})`);
+        event = participantWithEvent.event;
+        eventParticipant = participantWithEvent;
       }
     }
     
     if (event) {
       if (eventParticipant) {
+        console.log(`Processing payment for participant: ${eventParticipant.email} in event: ${event.name}`);
         eventParticipant.depositedAmount =
           eventParticipant.depositedAmount + amount;
 
@@ -221,6 +257,13 @@ const paymentService = {
 
         await EventParticipantRepository.save(eventParticipant);
       } else {
+        // Let's also check what participants exist for this event
+        const allParticipants = await EventParticipantRepository.find({
+          where: { event: { id: event.id } },
+          relations: ['user']
+        });
+        console.log(`All participants for event ${event.name}:`, allParticipants.map(p => ({ email: p.email, role: p.role })));
+        
         throw new Error(`Participant not Found! Email: ${email}, Event: ${eventIdentifier}`);
       }
 
