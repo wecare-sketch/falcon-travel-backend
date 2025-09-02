@@ -93,7 +93,7 @@ const eventService = {
     const eventFound = await EventRepository.findOne({
       where: {
         slug: event,
-        eventStatus: In([EventStatus.PENDING, EventStatus.STARTED]),
+        eventStatus: In([EventStatus.CREATED, EventStatus.PENDING, EventStatus.STARTED]),
       },
     });
 
