@@ -141,13 +141,20 @@ const paymentService = {
           return;
         }
 
+        // Use eventId from Stripe metadata instead of event.slug
+        const eventId = payment.metadata.eventId;
+        if (!eventId) {
+          console.error(`Event ID not found in payment metadata for payment: ${payment.id}`);
+          return;
+        }
+
         await paymentService.processPayment(
           transaction.user.email,
           transaction.amountReceived || 0,
-          transaction.event.slug
+          eventId // Pass eventId instead of event.slug
         );
 
-        const message = `${transaction.user.email} has paid ${transaction.amountReceived} to the event (${transaction.event.slug})`;
+        const message = `${transaction.user.email} has paid ${transaction.amountReceived} to the event (${eventId})`;
 
         const notification = {
           message: message,
@@ -178,11 +185,31 @@ const paymentService = {
     }
   },
 
-  processPayment: async (email: string, amount: number, eventSlug: string) => {
-    const event = await EventRepository.findOne({ where: { slug: eventSlug } });
-    const eventParticipant = await EventParticipantRepository.findOne({
-      where: { email: email, event: { slug: eventSlug } },
-    });
+  processPayment: async (email: string, amount: number, eventIdentifier: string) => {
+    // Check if eventIdentifier is an eventId (UUID) or eventSlug
+    const isEventId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(eventIdentifier);
+    
+    let event: Event | null = null;
+    let eventParticipant: EventParticipant | null = null;
+    
+    if (isEventId) {
+      // eventIdentifier is an eventId
+      event = await EventRepository.findOne({ where: { id: eventIdentifier } });
+      if (event) {
+        eventParticipant = await EventParticipantRepository.findOne({
+          where: { email: email, event: { id: eventIdentifier } },
+        });
+      }
+    } else {
+      // eventIdentifier is an eventSlug
+      event = await EventRepository.findOne({ where: { slug: eventIdentifier } });
+      if (event) {
+        eventParticipant = await EventParticipantRepository.findOne({
+          where: { email: email, event: { slug: eventIdentifier } },
+        });
+      }
+    }
+    
     if (event) {
       if (eventParticipant) {
         eventParticipant.depositedAmount =
@@ -194,7 +221,7 @@ const paymentService = {
 
         await EventParticipantRepository.save(eventParticipant);
       } else {
-        throw new Error("Participant not Found!");
+        throw new Error(`Participant not Found! Email: ${email}, Event: ${eventIdentifier}`);
       }
 
       event.depositAmount = event.depositAmount + amount;
@@ -206,7 +233,7 @@ const paymentService = {
 
       await EventRepository.save(event);
     } else {
-      throw new Error("Event not Found!");
+      throw new Error(`Event not Found! Identifier: ${eventIdentifier}`);
     }
   },
 };
