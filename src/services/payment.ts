@@ -94,16 +94,17 @@ const paymentService = {
   ) => {
     const transaction = await TransactionRepository.findOne({
       where: { paymentID: payment.id },
+      relations: ['user', 'event'], // Load the user and event relationships
     });
 
     if (!transaction) {
-      console.warn(`Transaction Entry not found for paymentID: ${payment}`);
+      console.warn(`Transaction Entry not found for paymentID: ${payment.id}`);
       return;
     }
 
     if (transaction.status === status) {
       console.log(
-        `Status for ${payment} already '${status}', skipping update.`
+        `Status for ${payment.id} already '${status}', skipping update.`
       );
       return;
     }
@@ -134,13 +135,19 @@ const paymentService = {
 
         await notificationService.send(notification, [admin]);
       } else if (status === PaymentStatus.PAID) {
+        // Check if user exists before accessing email
+        if (!transaction.user || !transaction.user.email) {
+          console.error(`User or user email not found for transaction: ${payment.id}`);
+          return;
+        }
+
         await paymentService.processPayment(
-          transaction.user!.email,
-          transaction.amountReceived,
+          transaction.user.email,
+          transaction.amountReceived || 0,
           transaction.event.slug
         );
 
-        const message = `${transaction.user} has paid ${transaction.amountReceived} to the event (${transaction.event.slug})`;
+        const message = `${transaction.user.email} has paid ${transaction.amountReceived} to the event (${transaction.event.slug})`;
 
         const notification = {
           message: message,
