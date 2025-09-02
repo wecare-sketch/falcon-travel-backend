@@ -25,66 +25,77 @@ const paymentService = {
     if (amount <= 0) {
       throw new Error("Invalid Amount!");
     }
-  
+
     const user = await userService.findUserWithEmail(email);
     const event = await eventService.getEventBySlug(slug);
     const eventParticipant = await EventParticipantRepository.findOne({
       where: { email: user.email, event: { slug: slug } },
     });
-  
+
     if (!eventParticipant) {
       throw new Error("Participant does not exist!");
     }
-  
+
+    // if (event.eventStatus !== EventStatus.STARTED) {
+    //   throw new Error(`This Event hasn't started yet!`);
+    // }
+
+    // const now = new Date(Date.now());
+    // const expiryDate = new Date(
+    //   new Date(event.updatedAt).getTime() + event.hoursReserved * 60 * 60 * 1000
+    // );
+    // const hasExpired = now >= expiryDate;
+
+    // if (hasExpired) {
+    //   event.eventStatus = EventStatus.EXPIRED;
+    //   await EventRepository.save(event);
+    //   throw new Error(`This Event has already expired!`);
+    // }
+
     if (event.paymentStatus === PaymentStatus.PAID) {
       throw new Error("Event Already Paid For!");
     }
-  
+
     if (eventParticipant.paymentStatus === PaymentStatus.PAID) {
       throw new Error("Unable to process this payment");
     }
-  
+
     // Convert amount to cents for Stripe
     const amountInCents = Math.round(amount * 100);
-  
-    // Create PaymentIntent with automatic payment methods enabled
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: amountInCents,
-      currency: "usd",
-      metadata: {
-        eventSlug: slug,
-        eventName: event.name,
-        userEmail: email,
-        userId: user.id,
-        eventId: event.id,
-      },
-      // Enable automatic payment methods (includes wallets)
-      automatic_payment_methods: { enabled: true },
-      // Optional: Add receipt email
-      receipt_email: email,
-      // Optional: Add description
-      description: `Payment for event: ${event.name}`,
+
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ["card"],
+      line_items: [
+        {
+          price_data: {
+            currency: "usd",
+            product_data: {
+              name: event.name,
+            },
+            unit_amount: amountInCents,
+          },
+          quantity: 1,
+        },
+      ],
+      mode: "payment",
+      success_url: `${process.env.STRIPE_RETURN_URL}`,
+      cancel_url: `${process.env.STRIPE_RETURN_URL}`,
     });
-  
-    // Create transaction record
+
     const newTransaction = TransactionRepository.create({
-      paymentID: paymentIntent.id,
-      amountIntended: amount, // Store in dollars, not cents
+      paymentID: session.id,
+      amountIntended: amount,
       currency: "usd",
       status: PaymentStatus.PENDING,
       user,
       event,
     });
-  
+
     await TransactionRepository.save(newTransaction);
-  
+
     return {
       message: "success",
-      data: {
-        clientSecret: paymentIntent.client_secret,
-        paymentIntentId: paymentIntent.id,
-        sessionId: paymentIntent.id,
-      },
+      data: { sessionId: session.id },
     };
   },
 
@@ -94,7 +105,7 @@ const paymentService = {
   ) => {
     const transaction = await TransactionRepository.findOne({
       where: { paymentID: payment.id },
-      relations: ['user', 'event'], // Load the user and event relationships
+      relations: ["user", "event"], // Load the user and event relationships
     });
 
     if (!transaction) {
@@ -116,14 +127,18 @@ const paymentService = {
     transaction.status = payment.status;
     // Convert Stripe amount from cents to dollars before storing
     const amountInDollars = Math.round(payment.amount_received / 100);
-    console.log(`Stripe amount: ${payment.amount_received} cents = $${amountInDollars}`);
-    
+    console.log(
+      `Stripe amount: ${payment.amount_received} cents = $${amountInDollars}`
+    );
+
     // Validate the amount is reasonable (should be between $0.01 and $10,000)
     if (amountInDollars < 0.01 || amountInDollars > 10000) {
-      console.error(`Invalid amount received: $${amountInDollars} (${payment.amount_received} cents)`);
+      console.error(
+        `Invalid amount received: $${amountInDollars} (${payment.amount_received} cents)`
+      );
       return;
     }
-    
+
     transaction.amountReceived = amountInDollars;
     transaction.paymentMethod = payment_method.card?.brand;
 
@@ -147,14 +162,18 @@ const paymentService = {
       } else if (status === PaymentStatus.PAID) {
         // Check if user exists before accessing email
         if (!transaction.user || !transaction.user.email) {
-          console.error(`User or user email not found for transaction: ${payment.id}`);
+          console.error(
+            `User or user email not found for transaction: ${payment.id}`
+          );
           return;
         }
 
         // Use eventId from Stripe metadata instead of event.slug
         const eventId = payment.metadata.eventId;
         if (!eventId) {
-          console.error(`Event ID not found in payment metadata for payment: ${payment.id}`);
+          console.error(
+            `Event ID not found in payment metadata for payment: ${payment.id}`
+          );
           return;
         }
 
@@ -195,16 +214,25 @@ const paymentService = {
     }
   },
 
-  processPayment: async (email: string, amount: number, eventIdentifier: string) => {
-    console.log(`processPayment called with: email=${email}, amount=${amount}, eventIdentifier=${eventIdentifier}`);
+  processPayment: async (
+    email: string,
+    amount: number,
+    eventIdentifier: string
+  ) => {
+    console.log(
+      `processPayment called with: email=${email}, amount=${amount}, eventIdentifier=${eventIdentifier}`
+    );
     console.log(`Amount to be added: $${amount} (should be in dollars)`);
-    
+
     // Check if eventIdentifier is an eventId (UUID) or eventSlug
-    const isEventId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(eventIdentifier);
-    
+    const isEventId =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        eventIdentifier
+      );
+
     let event: Event | null = null;
     let eventParticipant: EventParticipant | null = null;
-    
+
     if (isEventId) {
       // eventIdentifier is an eventId
       console.log(`Looking up event by ID: ${eventIdentifier}`);
@@ -215,7 +243,9 @@ const paymentService = {
           where: { email: email, event: { id: eventIdentifier } },
         });
         if (eventParticipant) {
-          console.log(`Participant found by ID lookup: ${eventParticipant.email}`);
+          console.log(
+            `Participant found by ID lookup: ${eventParticipant.email}`
+          );
         } else {
           console.log(`No participant found by ID lookup for email: ${email}`);
         }
@@ -225,42 +255,54 @@ const paymentService = {
     } else {
       // eventIdentifier is an eventSlug
       console.log(`Looking up event by slug: ${eventIdentifier}`);
-      event = await EventRepository.findOne({ where: { slug: eventIdentifier } });
+      event = await EventRepository.findOne({
+        where: { slug: eventIdentifier },
+      });
       if (event) {
         console.log(`Event found by slug: ${event.name} (${event.id})`);
         eventParticipant = await EventParticipantRepository.findOne({
           where: { email: email, event: { slug: eventIdentifier } },
         });
         if (eventParticipant) {
-          console.log(`Participant found by slug lookup: ${eventParticipant.email}`);
+          console.log(
+            `Participant found by slug lookup: ${eventParticipant.email}`
+          );
         } else {
-          console.log(`No participant found by slug lookup for email: ${email}`);
+          console.log(
+            `No participant found by slug lookup for email: ${email}`
+          );
         }
       } else {
         console.log(`No event found by slug: ${eventIdentifier}`);
       }
     }
-    
+
     // Fallback: If event not found by ID/slug, try to find it by user email
     if (!event || !eventParticipant) {
       console.log(`Fallback: Looking for event by user email: ${email}`);
       const participantWithEvent = await EventParticipantRepository.findOne({
         where: { email: email },
-        relations: ['event']
+        relations: ["event"],
       });
-      
+
       if (participantWithEvent && participantWithEvent.event) {
-        console.log(`Fallback: Found event by user email: ${participantWithEvent.event.name} (${participantWithEvent.event.id})`);
+        console.log(
+          `Fallback: Found event by user email: ${participantWithEvent.event.name} (${participantWithEvent.event.id})`
+        );
         event = participantWithEvent.event;
         eventParticipant = participantWithEvent;
       }
     }
-    
+
     if (event) {
       if (eventParticipant) {
-        console.log(`Processing payment for participant: ${eventParticipant.email} in event: ${event.name}`);
-        console.log(`Before payment - Participant deposited: $${eventParticipant.depositedAmount}, Event deposit: $${event.depositAmount}, Event pending: $${event.pendingAmount}`);
-        
+        console.log(
+          `Processing payment for participant: ${eventParticipant.email} in event: ${event.name}`
+        );
+        console.log(
+          `Before payment - Participant deposited: $${eventParticipant.depositedAmount}, Event deposit: $${event.depositAmount}, Event pending: $${event.pendingAmount}`
+        );
+
         eventParticipant.depositedAmount =
           eventParticipant.depositedAmount + amount;
 
@@ -269,7 +311,7 @@ const paymentService = {
         }
 
         await EventParticipantRepository.save(eventParticipant);
-        
+
         event.depositAmount = event.depositAmount + amount;
         event.pendingAmount = event.pendingAmount - amount;
 
@@ -278,17 +320,24 @@ const paymentService = {
         }
 
         await EventRepository.save(event);
-        
-        console.log(`After payment - Participant deposited: $${eventParticipant.depositedAmount}, Event deposit: $${event.depositAmount}, Event pending: $${event.pendingAmount}`);
+
+        console.log(
+          `After payment - Participant deposited: $${eventParticipant.depositedAmount}, Event deposit: $${event.depositAmount}, Event pending: $${event.pendingAmount}`
+        );
       } else {
         // Let's also check what participants exist for this event
         const allParticipants = await EventParticipantRepository.find({
           where: { event: { id: event.id } },
-          relations: ['user']
+          relations: ["user"],
         });
-        console.log(`All participants for event ${event.name}:`, allParticipants.map(p => ({ email: p.email, role: p.role })));
-        
-        throw new Error(`Participant not Found! Email: ${email}, Event: ${eventIdentifier}`);
+        console.log(
+          `All participants for event ${event.name}:`,
+          allParticipants.map((p) => ({ email: p.email, role: p.role }))
+        );
+
+        throw new Error(
+          `Participant not Found! Email: ${email}, Event: ${eventIdentifier}`
+        );
       }
     } else {
       throw new Error(`Event not Found! Identifier: ${eventIdentifier}`);
