@@ -8,6 +8,7 @@ import {
   getEventMedia,
   getEventRequests,
   getEvents,
+  sendHostInvite,
 } from "../controllers/event";
 import { authenticateToken } from "../middlewares/auth";
 import { authorizeAdmin } from "../middlewares/authAdmin";
@@ -36,7 +37,7 @@ router.post(
         eventDetails: JSON.parse(req.body.eventDetails),
         vehicleInfo: JSON.parse(req.body.vehicleInfo),
         paymentDetails: JSON.parse(req.body.paymentDetails),
-        tripNotes: JSON.parse(req.body.tripNotes)
+        tripNotes: JSON.parse(req.body.tripNotes),
       };
 
       const result = await eventService.addEvent(parsedEvent, req);
@@ -62,7 +63,7 @@ router.patch(
         eventDetails: JSON.parse(req.body.eventDetails),
         vehicleInfo: JSON.parse(req.body.vehicleInfo),
         paymentDetails: JSON.parse(req.body.paymentDetails),
-        tripNotes: JSON.parse(req.body.tripNotes)
+        tripNotes: JSON.parse(req.body.tripNotes),
       };
 
       const result = await eventService.editEvent(
@@ -107,6 +108,8 @@ router.patch(
   }
 );
 router.post("/request/:event/approve", authorizeAdmin, approveRequest);
+
+router.post("/event/:event/invite", authorizeAdmin, sendHostInvite);
 
 router.get("/events", authorizeAdmin, getEvents);
 router.get("/event/invoice/:event", getAdminInvoice);

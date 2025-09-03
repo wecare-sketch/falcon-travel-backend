@@ -43,6 +43,15 @@ export const approveRequest = errorHandler(
   }
 );
 
+export const sendHostInvite = errorHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const { event } = req.params;
+
+    const result = await eventService.sendInviteToHost(event);
+    return res.json(result);
+  }
+);
+
 export const createEvent = errorHandler(
   async (req: AuthenticatedRequest, res: Response) => {
     const { host, cohosts } = req.body as CreateEventDts;
@@ -63,7 +72,7 @@ export const editEvent = errorHandler(
       eventDetails,
       vehicleInfo,
       paymentDetails,
-      tripNotes
+      tripNotes,
     });
     return res.json(result);
   }
