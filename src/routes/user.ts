@@ -53,5 +53,6 @@ router.post("/feedback/:event", submitFeedback);
 router.post("/join/:token", joinEvent);
 router.post("/upload/:event", uploadMultiple.array("files"), uploadMedia);
 router.post("/payment/stripe/:event", payThruStripe);
+router.post("/payment/stripe/remaining/:event", payThruStripe);
 
 export default router;

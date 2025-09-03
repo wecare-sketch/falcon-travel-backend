@@ -399,11 +399,13 @@ const userService = {
           ? event.depositAmount
           : defaultEquity;
 
+      const paymentStatus = isHost ? PaymentStatus.PAID : PaymentStatus.PENDING;
+
       participant = EventParticipantRepository.create({
         email,
         event,
         equityAmount,
-        paymentStatus: PaymentStatus.PENDING,
+        paymentStatus: paymentStatus,
         role,
         user: isUser!,
       });
