@@ -30,14 +30,11 @@ export const payThruStripe = errorHandler(
 
 export const payRemainingThruStripe = errorHandler(
   async (req: AuthenticatedRequest, res: Response) => {
-    const { amount } = req.body;
-
     const user = req.user!;
 
     const { event } = req.params;
 
-    const result = await paymentService.payThruStripe(
-      amount,
+    const result = await paymentService.payRemainingThruStripe(
       event,
       user.email
     );

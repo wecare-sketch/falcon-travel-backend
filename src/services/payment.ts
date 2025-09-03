@@ -90,15 +90,7 @@ const paymentService = {
     };
   },
 
-  payRemainingThruStripe: async (
-    amount: number,
-    slug: string,
-    email: string
-  ) => {
-    if (!Number.isFinite(amount) || amount <= 0) {
-      throw new Error("Invalid Amount!");
-    }
-
+  payRemainingThruStripe: async (slug: string, email: string) => {
     const user = await userService.findUserWithEmail(email);
     const event = await eventService.getEventBySlug(slug);
 
