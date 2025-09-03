@@ -113,7 +113,6 @@ const eventService = {
 
     eventFound.host = host;
     eventFound.cohosts = cohosts;
-    eventFound.eventStatus = EventStatus.CREATED;
 
     eventFound.expiresAt = new Date(
       new Date(eventFound.pickupDate).getTime() +
@@ -152,9 +151,33 @@ const eventService = {
 
     await sendInvite(host, `${process.env.CLIENT_URL}/${inviteToken}`);
 
+    eventFound.eventStatus = EventStatus.CREATED;
+
+    await EventRepository.save(eventFound);
+
     return {
       message: "success",
       data: { url: `${process.env.CLIENT_URL}/${inviteToken}` },
+    };
+  },
+
+  sendInviteToHost: async (eventSlug: string) => {
+    const invite = await InviteTokenRepository.findOne({
+      where: { event: { slug: eventSlug } },
+    });
+
+    if (!invite) {
+      throw new Error("Invite not found!");
+    }
+
+    sendInvite(
+      invite.hostEmail,
+      `${process.env.CLIENT_URL}/${invite?.inviteToken}`
+    );
+
+    return {
+      message: "success",
+      data: { url: `${process.env.CLIENT_URL}/${invite?.inviteToken}` },
     };
   },
 

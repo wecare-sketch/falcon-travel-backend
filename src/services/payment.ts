@@ -89,6 +89,8 @@ const paymentService = {
     payment: Stripe.PaymentIntent,
     status: PaymentStatus
   ) => {
+    console.log("Payment Webhook:", payment);
+
     const transaction = await TransactionRepository.findOne({
       where: { paymentID: payment.id },
       relations: ["event", "user"],

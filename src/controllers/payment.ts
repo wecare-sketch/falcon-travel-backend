@@ -49,6 +49,8 @@ export const handleWebhook = errorHandler(
       return res.status(400).send(`Webhook Error: ${err.message}`);
     }
 
+    console.log("Event Received Webhook:", event);
+
     if (event.type === "payment_intent.succeeded") {
       const paymentIntent = event.data.object as Stripe.PaymentIntent;
       if (!paymentIntent.amount_received) {
