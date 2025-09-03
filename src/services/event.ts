@@ -27,7 +27,9 @@ import notificationService from "./notification";
 import { NotificationInputDts } from "../types/notification";
 import { AuthenticatedRequest } from "../types/request";
 import { mediaHandler } from "../utils/mediaHandler";
-import { In } from "typeorm";
+import { Transaction } from "typeorm";
+import { InvoicePayload, ParticipantInvoice } from "../types/payment";
+import paymentService from "./payment";
 
 const RequestRepository = AppDataSource.getRepository(EventRequest);
 const NotificationRepository = AppDataSource.getRepository(Notification);
@@ -35,6 +37,7 @@ const EventRepository = AppDataSource.getRepository(Event);
 const InviteTokenRepository = AppDataSource.getRepository(InviteToken);
 const EventParticipantRepository =
   AppDataSource.getRepository(EventParticipant);
+const TransactionRepository = AppDataSource.getRepository(Transaction);
 
 const UserRepository = AppDataSource.getRepository(User);
 
@@ -91,10 +94,7 @@ const eventService = {
       })
     );
     const eventFound = await EventRepository.findOne({
-      where: {
-        slug: event,
-        eventStatus: In([EventStatus.CREATED, EventStatus.PENDING, EventStatus.STARTED]),
-      },
+      where: { slug: event, eventStatus: EventStatus.PENDING },
     });
 
     if (!eventFound) {
@@ -436,6 +436,7 @@ const eventService = {
         "event.passengerCount",
         "event.expiresAt",
         "messages.message",
+        "event.tripNotes",
       ])
       .getOne();
 
@@ -445,9 +446,9 @@ const eventService = {
 
     const updatedEvent = await eventService.checkAndUpdateEventExpiry(event);
 
-    const user = await userService.findUserWithId(updatedEvent.id!);
+    const user = await userService.findUserWithEmail(updatedEvent.host!);
 
-    const msgs = updatedEvent.messages?.map((msg) => msg.message) ?? [];
+    const msgs = updatedEvent.tripNotes ?? "";
 
     const additionalData: SharedEventResponse = {
       trip_id: updatedEvent.slug,
@@ -474,6 +475,146 @@ const eventService = {
     };
 
     return { message: "success", data: additionalData };
+  },
+
+  getInvoice: async ({
+    userId,
+    eventSlug,
+    isAdmin,
+    lastOnly = false, // if true, show only the most recent payment per participant
+  }: {
+    userId?: string;
+    eventSlug: string;
+    isAdmin: boolean;
+    lastOnly?: boolean;
+  }): Promise<{ message: "success"; data: InvoicePayload }> => {
+    // 1) Load the event with participants
+    const eventRecord = await EventRepository.findOne({
+      where: { slug: eventSlug },
+      relations: ["participants", "participants.user"],
+    });
+    if (!eventRecord) throw new Error("Event not found!");
+
+    // 2) Prepare the base payload (event header + totals)
+    const totalParticipants = eventRecord.participants?.length ?? 0;
+    const participantsPaidCount = (eventRecord.participants || []).filter(
+      (p) => p.paymentStatus === PaymentStatus.PAID
+    ).length;
+
+    const basePayload: InvoicePayload = {
+      event: {
+        slug: eventRecord.slug,
+        name: eventRecord.name,
+        clientName: eventRecord.clientName,
+        phoneNumber: eventRecord.phoneNumber,
+        pickupDate: eventRecord.pickupDate,
+        location: eventRecord.location,
+        vehicle: eventRecord.vehicle,
+        hoursReserved: eventRecord.hoursReserved,
+        host: eventRecord.host ?? undefined,
+      },
+      participants: [],
+      totals: {
+        totalAmount: eventRecord.totalAmount,
+        depositAmount: eventRecord.depositAmount,
+        pendingAmount: Math.max(0, eventRecord.pendingAmount),
+        participantCount: totalParticipants,
+        participantsPaidCount,
+        participantsPendingCount: Math.max(
+          0,
+          totalParticipants - participantsPaidCount
+        ),
+      },
+    };
+
+    // 3) Decide what scope of data the caller is allowed to see
+    //    - "ALL" means every participant
+    //    - an array of emails means only those users (participant self)
+    let visibleEmails: "ALL" | string[] = "ALL";
+
+    if (!isAdmin) {
+      if (!userId) {
+        const err: any = new Error("Unauthorized");
+        err.status = 401;
+        throw err;
+      }
+
+      const requestingUser = await userService.findUserWithId(userId);
+      const isHost =
+        !!eventRecord.host && eventRecord.host === requestingUser.email;
+      const isParticipant = (eventRecord.participants || []).some(
+        (p) => p.email === requestingUser.email
+      );
+
+      if (isHost) {
+        // Host can view full invoice only after first event payment
+        const eventHasAnyPayment = (eventRecord.depositAmount ?? 0) > 0;
+        if (!eventHasAnyPayment) {
+          const err: any = new Error(
+            "Invoice will be available after the first payment."
+          );
+          err.status = 403;
+          throw err;
+        }
+        visibleEmails = "ALL";
+      } else if (isParticipant) {
+        // Participant can view only their own invoice and only after they have paid something
+        const selfParticipant = (eventRecord.participants || []).find(
+          (p) => p.email === requestingUser.email
+        );
+        const userHasPaidSomething =
+          !!selfParticipant && (selfParticipant.depositedAmount ?? 0) > 0;
+        if (!userHasPaidSomething) {
+          const err: any = new Error(
+            "Your invoice will be available after you make a payment."
+          );
+          err.status = 403;
+          throw err;
+        }
+        visibleEmails = [requestingUser.email];
+      } else {
+        const err: any = new Error("Forbidden");
+        err.status = 403;
+        throw err;
+      }
+    }
+
+    // 4) Collect all payments once, grouped by email
+    const paymentsGroupedByEmail =
+      await paymentService.getPaymentsByEmailForEvent(eventRecord.id);
+
+    // 5) Pick which participants to include based on visibility
+    const participantsToRender =
+      visibleEmails === "ALL"
+        ? eventRecord.participants || []
+        : (eventRecord.participants || []).filter((p) =>
+            visibleEmails.includes(p.email)
+          );
+
+    // 6) Build each participant block
+    basePayload.participants = participantsToRender.map((participant) => {
+      let payments = paymentsGroupedByEmail.get(participant.email) || [];
+      if (lastOnly && payments.length) payments = [payments[0]]; // keep only most recent if requested
+
+      const remainingAmount = Math.max(
+        0,
+        participant.equityAmount - participant.depositedAmount
+      );
+
+      const participantBlock: ParticipantInvoice = {
+        email: participant.email,
+        role: participant.role,
+        equityAmount: participant.equityAmount,
+        depositedAmount: participant.depositedAmount,
+        remainingAmount,
+        paymentStatus: participant.paymentStatus,
+        payments,
+      };
+
+      return participantBlock;
+    });
+
+    return { message: "success", data: basePayload };
   },
 
   getNotifications: async ({

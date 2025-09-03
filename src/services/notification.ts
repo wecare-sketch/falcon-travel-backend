@@ -38,6 +38,23 @@ const notificationService = {
         await NotificationRepository.save(newNotification);
       })
     );
+
+    const availableAdmins = await userService.getAdmins();
+
+    await Promise.all(
+      availableAdmins.map(async (admin) => {
+        const newNotification = NotificationRepository.create({
+          title: notification.title,
+          description: notification.message,
+          type: notification.eventType,
+          read: false,
+          ...relation,
+          user: admin,
+        });
+
+        await NotificationRepository.save(newNotification);
+      })
+    );
   },
 };
 

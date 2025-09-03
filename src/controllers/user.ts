@@ -4,6 +4,8 @@ import userService from "../services/user";
 import { AuthenticatedRequest } from "../types/request";
 import { RequestEventDts } from "../types/event";
 import eventService from "../services/event";
+import { buildInvoiceHTML } from "../utils/invoiceGenerator";
+import { htmlToPdfBuffer } from "../utils/pdfGenerator";
 
 export const addDetails = errorHandler(
   async (req: AuthenticatedRequest, res: Response) => {
@@ -164,5 +166,54 @@ export const getUserMedia = errorHandler(
     });
 
     return res.json(result);
+  }
+);
+
+export const getAdminInvoice = errorHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const { event } = req.params;
+    const lastOnly = req.query.lastOnly === "true"; // optional toggle
+
+    const { data } = await eventService.getInvoice({
+      userId: undefined,
+      eventSlug: event,
+      isAdmin: true,
+      lastOnly,
+    });
+
+    const html = buildInvoiceHTML(data);
+    const pdf = await htmlToPdfBuffer(html);
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `inline; filename="${data.event.slug}-invoice.pdf"`
+    );
+    res.send(pdf);
+  }
+);
+
+export const getUserInvoice = errorHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const userId = req.user!.id;
+    const { event } = req.params;
+    const lastOnly = req.query.lastOnly === "true"; // optional toggle
+
+    const { data } = await eventService.getInvoice({
+      userId,
+      eventSlug: event,
+      isAdmin: false,
+      lastOnly,
+    });
+
+    const html = buildInvoiceHTML(data);
+    const pdf = await htmlToPdfBuffer(html);
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `inline; filename="${data.event.slug}-invoice.pdf"`
+    );
+    res.send(pdf);
   }
 );

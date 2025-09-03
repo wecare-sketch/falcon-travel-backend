@@ -10,6 +10,7 @@ import {
   MemberRole,
   notificationType,
   PaymentStatus,
+  UserRole,
 } from "../constants/enums";
 import { RequestEventDts } from "../types/event";
 import { AuthenticatedRequest, JwtPayload } from "../types/request";
@@ -181,9 +182,7 @@ const userService = {
       request: newRequest,
     } as NotificationInputDts;
 
-    const admin = await userService.getAdmin();
-
-    await notificationService.send(notification, [admin]);
+    await notificationService.send(notification, []);
 
     return { message: "success", data: newRequest };
   },
@@ -314,25 +313,25 @@ const userService = {
 
     await FeedbackRepository.save(newFeedback);
 
-    // const message = `${user.fullName} has submitted a feedback to the event (${eventFound.slug}).`;
+    const message = `${email} has submitted a feedback to the event (${eventFound.name}).`;
 
-    // getIO().to(`event_${eventFound.slug}`).emit("new_feedback", {
-    //   message: message,
-    //   id: newFeedback.id,
-    //   createdAt: newFeedback.createdAt,
-    // });
+    const notification = {
+      emit_event: notificationType.FEEDBACK,
+      message: message,
+      title: "New Feedback",
+      eventType: EventType.FEEDBACK,
+      metadata: {
+        slug: eventFound.slug,
+        id: eventFound.id,
+        createdAt: eventFound.createdAt,
+      },
+    } as NotificationInputDts;
 
-    // const newNotification = NotificationRepository.create({
-    //   title: "New Feedback",
-    //   description: message,
-    //   type: EventType.FEEDBACK,
-    //   read: false,
-    //   user: user,
-    //   triggeredBy: user,
-    //   event: eventFound,
-    // });
+    const recipients = await eventService.getParticipantsAsUsers(
+      eventFound.slug
+    );
 
-    // await NotificationRepository.save(newNotification);
+    await notificationService.send(notification, recipients);
 
     return { message: "success", data: newFeedback };
   },
@@ -418,39 +417,23 @@ const userService = {
       role = existing.role;
     }
 
-    // const message = `${email} has joined as a ${role} to the event (${event.slug}).`;
+    const message = `${email} has joined as a ${role} to the event (${event.name}).`;
 
-    // getIO().to(`event_${event.slug}`).emit("new_participant", {
-    //   message,
-    //   role,
-    //   id: participant!.id,
-    //   createdAt: participant!.createdAt,
-    // });
+    const notification = {
+      emit_event: notificationType.PARTICPANT,
+      message: message,
+      title: "New Participant",
+      eventType: EventType.UPDATE,
+      metadata: {
+        slug: event.slug,
+        id: event.id,
+        createdAt: event.createdAt,
+      },
+    } as NotificationInputDts;
 
-    // const existingParticipants = await EventParticipantRepository.find({
-    //   where: { event: { slug: event.slug } },
-    // });
-    //
-    // await Promise.all(
-    //   existingParticipants.map(async (p) => {
-    //     const user = await UserRepository.findOne({
-    //       where: { email: p.email },
-    //     });
-    //     if (!user) return;
+    const recipients = await eventService.getParticipantsAsUsers(event.slug);
 
-    //     const notification = NotificationRepository.create({
-    //       title: "New Participant",
-    //       description: message,
-    //       type: EventType.UPDATE,
-    //       read: false,
-    //       user,
-    //       triggeredBy: user,
-    //       event,
-    //     });
-
-    //     await NotificationRepository.save(notification);
-    //   })
-    // );
+    await notificationService.send(notification, recipients);
 
     return;
   },
@@ -506,6 +489,16 @@ const userService = {
 
     const exists = await UserRepository.findOne({
       where: { email: adminEmail },
+    });
+
+    if (!exists) throw new Error("Admin not Set!");
+
+    return exists;
+  },
+
+  getAdmins: async () => {
+    const exists = await UserRepository.find({
+      where: { role: UserRole.ADMIN },
     });
 
     if (!exists) throw new Error("Admin not Set!");

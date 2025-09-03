@@ -4,6 +4,7 @@ import {
   addMessage,
   getEvents,
   getNotifications,
+  getUserInvoice,
   getUserMedia,
   joinEvent,
   requestEvent,
@@ -21,6 +22,7 @@ router.use(authenticateToken);
 
 router.get("/events", getEvents);
 router.get("/event/media/:event", getUserMedia);
+router.get("/event/invoice/:event", getUserInvoice);
 router.get("/notifications", getNotifications);
 router.post("/reset-password", resetPassword);
 router.post("/userdetails", addDetails);
@@ -50,6 +52,6 @@ router.post("/request-event", uploadSingleImage.single("file"), async (req, res,
 router.post("/feedback/:event", submitFeedback);
 router.post("/join/:token", joinEvent);
 router.post("/upload/:event", uploadMultiple.array("files"), uploadMedia);
-router.post("/payment/stripe", payThruStripe);
+router.post("/payment/stripe/:event", payThruStripe);
 
 export default router;

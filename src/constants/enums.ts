@@ -40,4 +40,6 @@ export enum notificationType {
   UPDATE_REQUEST = "update_request",
   EVENT_REQUEST = "event_request",
   PAYMENT = "payment",
+  FEEDBACK = "feedback",
+  PARTICPANT = "participant",
 }

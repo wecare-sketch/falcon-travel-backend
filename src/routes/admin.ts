@@ -11,7 +11,7 @@ import {
 } from "../controllers/event";
 import { authenticateToken } from "../middlewares/auth";
 import { authorizeAdmin } from "../middlewares/authAdmin";
-import { getNotifications } from "../controllers/user";
+import { getAdminInvoice, getNotifications } from "../controllers/user";
 import { uploadSingleImage } from "../config/multer";
 import {
   getKpis,
@@ -109,6 +109,7 @@ router.patch(
 router.post("/request/:event/approve", authorizeAdmin, approveRequest);
 
 router.get("/events", authorizeAdmin, getEvents);
+router.get("/event/invoice/:event", getAdminInvoice);
 router.get("/event-requests", authorizeAdmin, getEventRequests);
 router.get("/notifications", authorizeAdmin, getNotifications);
 router.get("/event/media/:event", authorizeAdmin, getEventMedia);

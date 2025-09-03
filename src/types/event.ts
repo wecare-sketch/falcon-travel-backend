@@ -76,5 +76,5 @@ export interface SharedEventResponse {
     passengerCount: number;
     hoursLocked: Date;
   };
-  tripNotes: string[];
+  tripNotes: string;
 }

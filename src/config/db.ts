@@ -12,6 +12,7 @@ import { EventFeedback } from "../entities/eventFeedback";
 import { Notification } from "../entities/notifications";
 import { Transaction } from "../entities/transactions";
 import { EventMessage } from "../entities/eventMessage";
+import { Invoice } from "../entities/invoice";
 
 const isUsingUrl = !!process.env.DATABASE_URL;
 
@@ -43,6 +44,7 @@ export const AppDataSource = new DataSource({
     EventFeedback,
     Notification,
     Transaction,
+    Invoice,
   ],
   migrations: [__dirname + "/../migrations/*.{ts,js}"],
   subscribers: [],
