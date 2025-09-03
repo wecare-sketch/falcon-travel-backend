@@ -27,7 +27,7 @@ import notificationService from "./notification";
 import { NotificationInputDts } from "../types/notification";
 import { AuthenticatedRequest } from "../types/request";
 import { mediaHandler } from "../utils/mediaHandler";
-import { Transaction } from "typeorm";
+import { In, Transaction } from "typeorm";
 import { InvoicePayload, ParticipantInvoice } from "../types/payment";
 import paymentService from "./payment";
 
@@ -94,7 +94,17 @@ const eventService = {
       })
     );
     const eventFound = await EventRepository.findOne({
-      where: { slug: event, eventStatus: EventStatus.PENDING },
+      where: {
+        slug: event,
+        eventStatus: In([
+          EventStatus.PENDING,
+          EventStatus.FINISHED,
+          EventStatus.EXPIRED,
+          EventStatus.CREATED,
+          EventStatus.STARTED,
+          EventStatus.DISCREPANCY,
+        ]),
+      },
     });
 
     if (!eventFound) {
