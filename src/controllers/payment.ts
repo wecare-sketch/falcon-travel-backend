@@ -28,6 +28,21 @@ export const payThruStripe = errorHandler(
   }
 );
 
+export const payRemainingThruStripe = errorHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const user = req.user!;
+
+    const { event } = req.params;
+
+    const result = await paymentService.payRemainingThruStripe(
+      event,
+      user.email
+    );
+
+    return res.json(result);
+  }
+);
+
 // export const handleWebhook = errorHandler(
 //   async (req: AuthenticatedRequest, res: Response) => {
 //     const sig = req.headers["stripe-signature"] as string | undefined;

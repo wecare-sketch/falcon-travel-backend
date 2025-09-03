@@ -41,6 +41,16 @@ const paymentService = {
     // Stripe needs cents
     const amountInCents = Math.round(amount * 100);
 
+    const meta = {
+      eventSlug: slug,
+      eventName: event.name,
+      payerEmail: email,
+      payerRole: "participant" as const,
+      paymentPurpose: "participant_share" as const,
+      userId: user.id,
+      eventId: event.id,
+    };
+
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       line_items: [
@@ -58,13 +68,7 @@ const paymentService = {
       mode: "payment",
       success_url: `${process.env.STRIPE_RETURN_URL}`,
       cancel_url: `${process.env.STRIPE_RETURN_URL}`,
-      metadata: {
-        eventSlug: slug,
-        eventName: event.name,
-        userEmail: email,
-        userId: user.id,
-        eventId: event.id,
-      },
+      metadata: meta,
     });
 
     console.log("session", session);
@@ -72,6 +76,76 @@ const paymentService = {
     const newTransaction = TransactionRepository.create({
       paymentID: session.id,
       amountIntended: Math.trunc(amount),
+      currency: "usd",
+      status: PaymentStatus.PENDING,
+      user,
+      event,
+    });
+
+    await TransactionRepository.save(newTransaction);
+
+    return {
+      message: "success",
+      data: { sessionId: session.id },
+    };
+  },
+
+  payRemainingThruStripe: async (slug: string, email: string) => {
+    const user = await userService.findUserWithEmail(email);
+    const event = await eventService.getEventBySlug(slug);
+
+    const eventParticipant = await EventParticipantRepository.findOne({
+      where: { email: user.email, event: { slug } },
+    });
+    if (!eventParticipant) throw new Error("Participant does not exist!");
+
+    if (event.paymentStatus === PaymentStatus.PAID) {
+      throw new Error("Event Already Paid For!");
+    }
+    if (event.host !== user.email) {
+      throw new Error("Unable to process payment");
+    }
+
+    // Stripe needs cents
+
+    const remainingAmount = event.pendingAmount;
+    const amountInCents = Math.round(remainingAmount * 100);
+
+    const meta = {
+      eventSlug: slug,
+      eventName: event.name,
+      payerEmail: email,
+      payerRole: "host" as const,
+      paymentPurpose: "final_remaining" as const,
+      userId: user.id,
+      eventId: event.id,
+    };
+
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ["card"],
+      line_items: [
+        {
+          price_data: {
+            currency: "usd",
+            product_data: {
+              name: event.name,
+            },
+            unit_amount: amountInCents,
+          },
+          quantity: 1,
+        },
+      ],
+      mode: "payment",
+      success_url: `${process.env.STRIPE_RETURN_URL}`,
+      cancel_url: `${process.env.STRIPE_RETURN_URL}`,
+      metadata: meta,
+    });
+
+    console.log("session", session);
+    // Store dollars in our DB for consistency
+    const newTransaction = TransactionRepository.create({
+      paymentID: session.id,
+      amountIntended: Math.trunc(remainingAmount),
       currency: "usd",
       status: PaymentStatus.PENDING,
       user,
@@ -223,14 +297,27 @@ const paymentService = {
     transaction.status = status;
     transaction.amountReceived = amountReceivedDollars;
     transaction.paymentMethod = brand;
+
     await TransactionRepository.save(transaction);
 
     if (status === PaymentStatus.PAID) {
-      await paymentService.processPayment(
-        transaction.user!.email,
-        amountReceivedDollars,
-        transaction.event.slug
-      );
+      const meta = session.metadata || {};
+      const payerRole = (meta.payerRole as string) || "";
+      const purpose = (meta.paymentPurpose as string) || "";
+
+      if (payerRole === "host" && purpose === "final_remaining") {
+        await paymentService.processFinalHostPayment(
+          transaction.user!.email,
+          transaction.event.slug,
+          amountReceivedDollars
+        );
+      } else {
+        await paymentService.processPayment(
+          transaction.user!.email,
+          amountReceivedDollars,
+          transaction.event.slug
+        );
+      }
 
       const message = `${
         transaction.user?.email ?? "A user"
@@ -280,9 +367,36 @@ const paymentService = {
     if (!eventParticipant) throw new Error("Participant not Found!");
 
     eventParticipant.depositedAmount += amount;
-    if (eventParticipant.depositedAmount >= eventParticipant.equityAmount) {
-      eventParticipant.paymentStatus = PaymentStatus.PAID;
+    eventParticipant.equityAmount = amount;
+    eventParticipant.paymentStatus = PaymentStatus.PAID;
+
+    await EventParticipantRepository.save(eventParticipant);
+
+    event.depositAmount += amount;
+    event.pendingAmount = Math.max(0, event.pendingAmount - amount);
+    if (event.pendingAmount === 0) {
+      event.paymentStatus = PaymentStatus.PAID;
     }
+    await EventRepository.save(event);
+  },
+
+  processFinalHostPayment: async (
+    email: string,
+    eventSlug: string,
+    amount: number
+  ) => {
+    const event = await EventRepository.findOne({ where: { slug: eventSlug } });
+    const eventParticipant = await EventParticipantRepository.findOne({
+      where: { email, event: { slug: eventSlug } },
+    });
+
+    if (!event) throw new Error("Event not Found!");
+    if (!eventParticipant) throw new Error("Participant not Found!");
+
+    eventParticipant.depositedAmount += amount;
+    eventParticipant.equityAmount = amount;
+    eventParticipant.paymentStatus = PaymentStatus.PAID;
+
     await EventParticipantRepository.save(eventParticipant);
 
     event.depositAmount += amount;

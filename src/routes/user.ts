@@ -14,7 +14,7 @@ import {
 } from "../controllers/user";
 import { authenticateToken } from "../middlewares/auth";
 import { uploadMultiple, uploadSingleImage } from "../config/multer";
-import { payThruStripe } from "../controllers/payment";
+import { payRemainingThruStripe, payThruStripe } from "../controllers/payment";
 
 const router = Router();
 
@@ -53,5 +53,6 @@ router.post("/feedback/:event", submitFeedback);
 router.post("/join/:token", joinEvent);
 router.post("/upload/:event", uploadMultiple.array("files"), uploadMedia);
 router.post("/payment/stripe/:event", payThruStripe);
+router.post("/payment/stripe/remaining/:event", payRemainingThruStripe);
 
 export default router;
