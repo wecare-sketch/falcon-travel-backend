@@ -456,7 +456,9 @@ const eventService = {
 
     const updatedEvent = await eventService.checkAndUpdateEventExpiry(event);
 
-    const user = await userService.findUserWithEmail(updatedEvent.host!);
+    const user = await UserRepository.findOne({
+      where: { email: updatedEvent.host },
+    });
 
     const msgs = updatedEvent.tripNotes ?? "";
 
@@ -466,13 +468,13 @@ const eventService = {
       ETA: updatedEvent.pickupDate,
 
       passengerInfo: {
-        name: user.fullName!,
-        phone: user.phoneNumber!,
+        name: user?.fullName ?? "",
+        phone: user?.phoneNumber ?? "",
       },
 
       routeDetails: {
         location: updatedEvent.location,
-        route: updatedEvent.stops,
+        route: updatedEvent.stops ?? [],
       },
 
       vehicleInfo: {
