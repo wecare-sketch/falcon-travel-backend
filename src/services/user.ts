@@ -395,9 +395,7 @@ const userService = {
       );
 
       const equityAmount =
-        isHost && event.depositAmount !== 0
-          ? event.depositAmount
-          : defaultEquity;
+        isHost && event.depositAmount !== 0 ? event.depositAmount : 0;
 
       // const paymentStatus = isHost ? PaymentStatus.PAID : PaymentStatus.PENDING;
       const depositedAmount = isHost ? event.depositAmount : 0;
