@@ -67,6 +67,7 @@ const paymentService = {
       },
     });
 
+    console.log("session", session)
     // Store dollars in our DB for consistency
     const newTransaction = TransactionRepository.create({
       paymentID: session.id,
