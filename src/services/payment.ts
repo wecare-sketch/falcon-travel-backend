@@ -67,7 +67,7 @@ const paymentService = {
       },
     });
 
-    console.log("session", session)
+    console.log("session", session);
     // Store dollars in our DB for consistency
     const newTransaction = TransactionRepository.create({
       paymentID: session.id,
@@ -180,6 +180,93 @@ const paymentService = {
 
       // console.log(`Status updated to '${status}' for paymentID: ${payment.id}`);
       return;
+    }
+  },
+
+  // NEW: update using Checkout Session (maps by session.id)
+  updateStatusFromCheckoutSession: async (
+    session: Stripe.Checkout.Session,
+    status: PaymentStatus
+  ) => {
+    // Find the transaction you created when you made the Checkout Session
+    const transaction = await TransactionRepository.findOne({
+      where: { paymentID: session.id }, // you stored session.id here
+      relations: ["event", "user"],
+    });
+
+    if (!transaction) {
+      console.warn(`Transaction not found for session: ${session.id}`);
+      return;
+    }
+    if (transaction.status === status) return;
+
+    let amountReceivedDollars = 0;
+    let brand: string | undefined;
+
+    // Prefer reading amounts/brand from the underlying PaymentIntent
+    const piId = session.payment_intent as string | null;
+    if (piId) {
+      const pi = await stripe.paymentIntents.retrieve(piId, {
+        expand: ["payment_method"],
+      });
+      amountReceivedDollars = Math.trunc((pi.amount_received ?? 0) / 100);
+
+      const pm = pi.payment_method as Stripe.PaymentMethod | null;
+      if (pm && pm.type === "card") {
+        brand = pm.card?.brand;
+      }
+    } else if (session.amount_total != null) {
+      // Fallback if PI isn’t present (uncommon)
+      amountReceivedDollars = Math.trunc((session.amount_total ?? 0) / 100);
+    }
+
+    transaction.status = status;
+    transaction.amountReceived = amountReceivedDollars;
+    transaction.paymentMethod = brand;
+    await TransactionRepository.save(transaction);
+
+    if (status === PaymentStatus.PAID) {
+      await paymentService.processPayment(
+        transaction.user!.email,
+        amountReceivedDollars,
+        transaction.event.slug
+      );
+
+      const message = `${
+        transaction.user?.email ?? "A user"
+      } has paid $${amountReceivedDollars} to the event (${
+        transaction.event.name
+      })`;
+      const notification: NotificationInputDts = {
+        message,
+        emit_event: notificationType.PAYMENT,
+        title: "Incoming Payment",
+        eventType: EventType.PAYMENT,
+        event: transaction.event,
+        metadata: {
+          slug: transaction.event.slug,
+          paidAt: transaction.paidAt,
+          paymentID: transaction.paymentID,
+        },
+      };
+      const users = await eventService.getParticipantsAsUsers(
+        transaction.event.slug
+      );
+      await notificationService.send(notification, users);
+    }
+
+    if (status === PaymentStatus.DISCREPANCY) {
+      const admin = await userService.getAdmin();
+      const notification: NotificationInputDts = {
+        emit_event: notificationType.PAYMENT,
+        title: "Payment Flagged",
+        message: `A payment was flagged for unusual behavior: ${session.id}`,
+        eventType: EventType.PAYMENT,
+        event: transaction.event,
+        user: admin,
+        metadata: { user: transaction.user },
+      };
+      await notificationService.send(notification, [admin]);
     }
   },
 
