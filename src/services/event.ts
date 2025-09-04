@@ -43,6 +43,13 @@ const UserRepository = AppDataSource.getRepository(User);
 
 const eventService = {
   addEvent: async (event: AddEventDts, req: AuthenticatedRequest) => {
+    if (
+      event.paymentDetails.equityDivision < 0 ||
+      event.paymentDetails.totalAmount < 0 ||
+      event.paymentDetails.pendingAmount < 0
+    )
+      throw new Error("amount cannot be less than 0");
+
     const slug = generateSlug(event.eventDetails.clientName);
 
     const imageUrl = await mediaHandler(
