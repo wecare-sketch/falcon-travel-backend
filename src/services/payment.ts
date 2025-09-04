@@ -141,7 +141,7 @@ const paymentService = {
       metadata: meta,
     });
 
-    console.log("session", session);
+    // console.log("session", session);
     // Store dollars in our DB for consistency
     const newTransaction = TransactionRepository.create({
       paymentID: session.id,
@@ -160,102 +160,102 @@ const paymentService = {
     };
   },
 
-  updateStatus: async (
-    payment: Stripe.PaymentIntent,
-    status: PaymentStatus
-  ) => {
-    console.log("Payment Webhook:", payment);
+  // updateStatus: async (
+  //   payment: Stripe.PaymentIntent,
+  //   status: PaymentStatus
+  // ) => {
+  //   console.log("Payment Webhook:", payment);
 
-    const transaction = await TransactionRepository.findOne({
-      where: { paymentID: payment.id },
-      relations: ["event", "user"],
-    });
+  //   const transaction = await TransactionRepository.findOne({
+  //     where: { paymentID: payment.id },
+  //     relations: ["event", "user"],
+  //   });
 
-    if (!transaction) {
-      console.warn(`Transaction not found for paymentID: ${payment.id}`);
-      return;
-    }
+  //   if (!transaction) {
+  //     console.warn(`Transaction not found for paymentID: ${payment.id}`);
+  //     return;
+  //   }
 
-    if (transaction.status === status) {
-      console.log(
-        `Status for ${payment.id} already '${status}', skipping update.`
-      );
-      return;
-    }
+  //   if (transaction.status === status) {
+  //     console.log(
+  //       `Status for ${payment.id} already '${status}', skipping update.`
+  //     );
+  //     return;
+  //   }
 
-    let brand: string | undefined;
-    if (payment.payment_method) {
-      try {
-        const pm = await stripe.paymentMethods.retrieve(
-          payment.payment_method as string
-        );
-        brand = pm.card?.brand;
-      } catch {}
-    }
+  //   let brand: string | undefined;
+  //   if (payment.payment_method) {
+  //     try {
+  //       const pm = await stripe.paymentMethods.retrieve(
+  //         payment.payment_method as string
+  //       );
+  //       brand = pm.card?.brand;
+  //     } catch {}
+  //   }
 
-    // Convert Stripe cents -> dollars before saving to our DB
-    const amountReceivedDollars = Math.trunc(
-      (payment.amount_received ?? 0) / 100
-    );
+  //   // Convert Stripe cents -> dollars before saving to our DB
+  //   const amountReceivedDollars = Math.trunc(
+  //     (payment.amount_received ?? 0) / 100
+  //   );
 
-    transaction.status = status;
-    transaction.amountReceived = amountReceivedDollars;
-    transaction.paymentMethod = brand;
+  //   transaction.status = status;
+  //   transaction.amountReceived = amountReceivedDollars;
+  //   transaction.paymentMethod = brand;
 
-    await TransactionRepository.save(transaction);
+  //   await TransactionRepository.save(transaction);
 
-    if (status === PaymentStatus.DISCREPANCY) {
-      const admin = await userService.getAdmin();
+  //   if (status === PaymentStatus.DISCREPANCY) {
+  //     const admin = await userService.getAdmin();
 
-      const notification: NotificationInputDts = {
-        emit_event: notificationType.PAYMENT,
-        title: "Payment Flagged",
-        message: `A payment was flagged for unusual behavior: ${payment.id}`,
-        eventType: EventType.PAYMENT,
-        event: transaction.event,
-        user: admin,
-        metadata: { user: transaction.user },
-      };
+  //     const notification: NotificationInputDts = {
+  //       emit_event: notificationType.PAYMENT,
+  //       title: "Payment Flagged",
+  //       message: `A payment was flagged for unusual behavior: ${payment.id}`,
+  //       eventType: EventType.PAYMENT,
+  //       event: transaction.event,
+  //       user: admin,
+  //       metadata: { user: transaction.user },
+  //     };
 
-      await notificationService.send(notification, []);
-      return;
-    }
+  //     await notificationService.send(notification, []);
+  //     return;
+  //   }
 
-    if (status === PaymentStatus.PAID) {
-      await paymentService.processPayment(
-        transaction.user!.email,
-        amountReceivedDollars,
-        transaction.event.slug
-      );
+  //   if (status === PaymentStatus.PAID) {
+  //     await paymentService.processPayment(
+  //       transaction.user!.email,
+  //       amountReceivedDollars,
+  //       transaction.event.slug
+  //     );
 
-      const message = `${
-        transaction.user?.email ?? "A user"
-      } has paid $${amountReceivedDollars} to the event (${
-        transaction.event.name
-      })`;
+  //     const message = `${
+  //       transaction.user?.email ?? "A user"
+  //     } has paid $${amountReceivedDollars} to the event (${
+  //       transaction.event.name
+  //     })`;
 
-      const notification: NotificationInputDts = {
-        message,
-        emit_event: notificationType.PAYMENT,
-        title: "Incoming Payment",
-        eventType: EventType.PAYMENT,
-        event: transaction.event,
-        metadata: {
-          slug: transaction.event.slug,
-          paidAt: transaction.paidAt,
-          paymentID: transaction.paymentID,
-        },
-      };
+  //     const notification: NotificationInputDts = {
+  //       message,
+  //       emit_event: notificationType.PAYMENT,
+  //       title: "Incoming Payment",
+  //       eventType: EventType.PAYMENT,
+  //       event: transaction.event,
+  //       metadata: {
+  //         slug: transaction.event.slug,
+  //         paidAt: transaction.paidAt,
+  //         paymentID: transaction.paymentID,
+  //       },
+  //     };
 
-      const users = await eventService.getParticipantsAsUsers(
-        transaction.event.slug
-      );
-      await notificationService.send(notification, users);
+  //     const users = await eventService.getParticipantsAsUsers(
+  //       transaction.event.slug
+  //     );
+  //     await notificationService.send(notification, users);
 
-      // console.log(`Status updated to '${status}' for paymentID: ${payment.id}`);
-      return;
-    }
-  },
+  //     // console.log(`Status updated to '${status}' for paymentID: ${payment.id}`);
+  //     return;
+  //   }
+  // },
 
   // NEW: update using Checkout Session (maps by session.id)
   updateStatusFromCheckoutSession: async (
@@ -305,7 +305,7 @@ const paymentService = {
       const payerRole = (meta.payerRole as string) || "";
       const purpose = (meta.paymentPurpose as string) || "";
 
-      console.log("metadata payer: ", meta);
+      // console.log("metadata payer: ", meta);
 
       if (payerRole === "host" && purpose === "final_remaining") {
         await paymentService.processFinalHostPayment(
@@ -374,7 +374,7 @@ const paymentService = {
 
     await EventParticipantRepository.save(eventParticipant);
 
-    event.depositAmount += amount;
+    // event.depositAmount += amount;
     event.pendingAmount = Math.max(0, event.pendingAmount - amount);
     if (event.pendingAmount === 0) {
       event.paymentStatus = PaymentStatus.PAID;
@@ -401,7 +401,7 @@ const paymentService = {
 
     await EventParticipantRepository.save(eventParticipant);
 
-    event.depositAmount += amount;
+    // event.depositAmount += amount;
     event.pendingAmount = Math.max(0, event.pendingAmount - amount);
     if (event.pendingAmount === 0) {
       event.paymentStatus = PaymentStatus.PAID;

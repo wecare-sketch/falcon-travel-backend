@@ -397,7 +397,7 @@ const userService = {
 
     if (!existing) {
       const defaultEquity = Math.floor(
-        event.pendingAmount / event.equityDivision
+        event.initialEquity / event.equityDivision
       );
 
       const equityAmount =
