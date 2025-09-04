@@ -394,7 +394,7 @@ const paymentService = {
     if (!eventParticipant) throw new Error("Participant not Found!");
 
     eventParticipant.depositedAmount += amount;
-    eventParticipant.equityAmount = amount;
+    eventParticipant.equityAmount += amount;
     eventParticipant.paymentStatus = PaymentStatus.PAID;
 
     await EventParticipantRepository.save(eventParticipant);
