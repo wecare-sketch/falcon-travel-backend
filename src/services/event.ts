@@ -50,6 +50,9 @@ const eventService = {
     )
       throw new Error("amount cannot be less than 0");
 
+    if (event.paymentDetails.totalAmount < event.paymentDetails.pendingAmount)
+      throw new Error("Invalid payment values");
+
     const depositAmount = Math.floor(
       event.paymentDetails.totalAmount - event.paymentDetails.pendingAmount
     );
@@ -71,10 +74,16 @@ const eventService = {
       }
     );
 
+    const updatedStatus =
+      event.paymentDetails.pendingAmount === 0
+        ? PaymentStatus.PAID
+        : PaymentStatus.PENDING;
+
     const newEvent = EventRepository.create({
       imageUrl: imageUrl[0],
       name: event.eventDetails.name,
       eventType: event.eventDetails.eventType,
+      paymentStatus: updatedStatus,
       clientName: event.eventDetails.clientName,
       phoneNumber: event.eventDetails.phoneNumber,
       pickupDate: event.eventDetails.pickupDate,
@@ -85,6 +94,7 @@ const eventService = {
       hoursReserved: event.vehicleInfo.hoursReserved,
       totalAmount: event.paymentDetails.totalAmount,
       pendingAmount: event.paymentDetails.pendingAmount,
+      initialEquity: event.paymentDetails.pendingAmount,
       depositAmount: depositAmount,
       equityDivision: event.paymentDetails.equityDivision,
       tripNotes: event.tripNotes,
@@ -97,7 +107,7 @@ const eventService = {
   },
 
   createEvent: async (host: string, cohosts: string[], event: string) => {
-    console.log("slug", event);
+    // console.log("slug", event);
     console.log(
       "event",
       await EventRepository.findOne({
@@ -209,6 +219,9 @@ const eventService = {
     )
       throw new Error("amount cannot be less than 0");
 
+    if (paymentDetails.totalAmount < paymentDetails.pendingAmount)
+      throw new Error("Invalid payment values");
+
     const depositAmount = Math.floor(
       paymentDetails.totalAmount - paymentDetails.pendingAmount
     );
@@ -217,10 +230,16 @@ const eventService = {
       throw new Error("Invalid amount entered");
     }
 
+    const updatedStatus =
+      paymentDetails.pendingAmount === 0
+        ? PaymentStatus.PAID
+        : PaymentStatus.PENDING;
+
     const newEvent = EventRepository.create({
       name: requestFound.name,
       eventType: requestFound.eventType,
       clientName: requestFound.clientName,
+      paymentStatus: updatedStatus,
       phoneNumber: requestFound.phoneNumber,
       pickupDate: requestFound.pickupDate,
       location: requestFound.location,
@@ -230,6 +249,7 @@ const eventService = {
       hoursReserved: requestFound.hoursReserved,
       totalAmount: paymentDetails.totalAmount,
       pendingAmount: paymentDetails.pendingAmount,
+      initialEquity: paymentDetails.pendingAmount,
       depositAmount: depositAmount,
       equityDivision: paymentDetails.equityDivision,
       slug: requestFound.slug,
@@ -310,7 +330,9 @@ const eventService = {
       throw new Error("Event has already been locked. You can't proceed.");
     }
 
-    if (depositAmount) eventFound.name = eventObject.eventDetails.name;
+    await eventService.checkAndUpdatePaymentInfo(eventObject, eventFound);
+
+    eventFound.name = eventObject.eventDetails.name;
     eventFound.eventType = eventObject.eventDetails.eventType;
     eventFound.clientName = eventObject.eventDetails.clientName;
     eventFound.phoneNumber = eventObject.eventDetails.phoneNumber;
@@ -319,6 +341,7 @@ const eventService = {
     eventFound.vehicle = eventObject.vehicleInfo.vehicleName;
     eventFound.passengerCount = eventObject.vehicleInfo.numberOfPassengers;
     eventFound.hoursReserved = eventObject.vehicleInfo.hoursReserved;
+    eventFound.initialEquity = eventObject.paymentDetails.pendingAmount;
     eventFound.totalAmount = eventObject.paymentDetails.totalAmount;
     eventFound.pendingAmount = eventObject.paymentDetails.pendingAmount;
     eventFound.depositAmount = depositAmount;
@@ -348,6 +371,46 @@ const eventService = {
     }
 
     return { message: "success", data: newEvent };
+  },
+
+  checkAndUpdatePaymentInfo: async (eventObject: AddEventDts, event: Event) => {
+    const { totalAmount, pendingAmount, equityDivision } =
+      eventObject.paymentDetails;
+
+    const changed =
+      totalAmount !== event.totalAmount ||
+      pendingAmount !== event.pendingAmount ||
+      equityDivision !== event.equityDivision;
+
+    if (!changed) return;
+
+    if (!Number.isInteger(totalAmount) || !Number.isInteger(pendingAmount)) {
+      throw new Error("Amounts must be whole dollars (integers).");
+    }
+    if (!Number.isInteger(equityDivision) || equityDivision <= 0) {
+      throw new Error("equityDivision must be a positive integer.");
+    }
+
+    const depositAmount = Math.floor(
+      eventObject.paymentDetails.totalAmount -
+        eventObject.paymentDetails.pendingAmount
+    );
+
+    const newEquity = Math.floor(pendingAmount / equityDivision);
+
+    const participants = await eventService.getPendingParticipants(event.slug);
+
+    for (const p of participants) {
+      const isHost =
+        p.role === MemberRole.HOST ||
+        (!!event.host && p.email?.toLowerCase() === event.host.toLowerCase());
+
+      p.equityAmount = isHost ? depositAmount : newEquity;
+    }
+
+    if (participants.length) {
+      await EventParticipantRepository.save(participants);
+    }
   },
 
   editRequest: async (eventObject: EditRequestDts) => {
@@ -584,7 +647,7 @@ const eventService = {
       participants: [],
       totals: {
         totalAmount: eventRecord.totalAmount,
-        depositAmount: eventRecord.depositAmount,
+        depositAmount: eventRecord.totalAmount - eventRecord.pendingAmount,
         pendingAmount: Math.max(0, eventRecord.pendingAmount),
         participantCount: totalParticipants,
         participantsPaidCount,
@@ -616,7 +679,8 @@ const eventService = {
 
       if (isHost) {
         // Host can view full invoice only after first event payment
-        const eventHasAnyPayment = (eventRecord.depositAmount ?? 0) > 0;
+        const eventHasAnyPayment =
+          eventRecord.totalAmount - eventRecord.pendingAmount >= 0;
         if (!eventHasAnyPayment) {
           const err: any = new Error(
             "Invoice will be available after the first payment."
@@ -789,6 +853,13 @@ const eventService = {
       .filter((u): u is User => !!u);
 
     return users || [];
+  },
+
+  getPendingParticipants: async (slug: string): Promise<EventParticipant[]> => {
+    return await EventParticipantRepository.find({
+      where: { event: { slug }, paymentStatus: PaymentStatus.PENDING },
+      order: { id: "ASC" },
+    });
   },
 
   checkAndUpdateEventExpiry: async (event: Event) => {

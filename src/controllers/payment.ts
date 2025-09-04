@@ -142,17 +142,17 @@ export const handleWebhook = async (
       break;
     }
 
-    // ✅ Keep these for any non-Checkout (Payment Element or CLI) flows you run
-    case "payment_intent.succeeded": {
-      const pi = event.data.object as Stripe.PaymentIntent;
-      await paymentService.updateStatus(pi, PaymentStatus.PAID);
-      break;
-    }
-    case "payment_intent.payment_failed": {
-      const pi = event.data.object as Stripe.PaymentIntent;
-      await paymentService.updateStatus(pi, PaymentStatus.FAILED);
-      break;
-    }
+    // // ✅ Keep these for any non-Checkout (Payment Element or CLI) flows you run
+    // case "payment_intent.succeeded": {
+    //   const pi = event.data.object as Stripe.PaymentIntent;
+    //   await paymentService.updateStatus(pi, PaymentStatus.PAID);
+    //   break;
+    // }
+    // case "payment_intent.payment_failed": {
+    //   const pi = event.data.object as Stripe.PaymentIntent;
+    //   await paymentService.updateStatus(pi, PaymentStatus.FAILED);
+    //   break;
+    // }
 
     default:
       // ignore others

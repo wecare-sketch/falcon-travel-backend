@@ -103,7 +103,7 @@ export function buildInvoiceHTML(data: InvoicePayload): string {
           data.totals.totalAmount
         )}</td></tr>
         <tr><td>Deposit Received</td><td class="right">${formatMoney(
-          data.totals.depositAmount
+          data.totals.totalAmount - data.totals.pendingAmount
         )}</td></tr>
         <tr><td><strong>Pending</strong></td><td class="right"><strong>${formatMoney(
           data.totals.pendingAmount

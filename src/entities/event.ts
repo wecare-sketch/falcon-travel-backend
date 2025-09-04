@@ -53,6 +53,9 @@ export class Event {
   @Column({ type: "int" })
   totalAmount!: number;
 
+  @Column({ type: "int", nullable: true })
+  initialEquity!: number;
+
   @Column({ type: "int" })
   passengerCount!: number;
 
