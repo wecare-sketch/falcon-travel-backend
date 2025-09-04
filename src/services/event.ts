@@ -597,6 +597,7 @@ const eventService = {
         const selfParticipant = (eventRecord.participants || []).find(
           (p) => p.email === requestingUser.email
         );
+
         const userHasPaidSomething =
           !!selfParticipant && (selfParticipant.depositedAmount ?? 0) > 0;
         if (!userHasPaidSomething) {

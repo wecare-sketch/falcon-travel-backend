@@ -62,22 +62,27 @@ export const loginWithGoogle = errorHandler(
   async (req: Request, res: Response) => {
     const { authToken } = req.body;
 
+    const token =
+      typeof req.query.token === "string" ? req.query.token : undefined;
+
     const email = await verifyGoogleToken(authToken);
     const user = await userService.findOAuthUser("google", email);
-    const result = await userService.loginWithOAuth(user);
-    
+    const result = await userService.loginWithOAuth(user, token);
+
     return res.status(200).json(result);
   }
 );
-
 
 export const loginWithApple = errorHandler(
   async (req: Request, res: Response) => {
     const { authToken } = req.body;
 
+    const token =
+      typeof req.query.token === "string" ? req.query.token : undefined;
+
     const { sub } = await verifyAppleToken(authToken);
     const user = await userService.findOAuthUser("apple", sub);
 
-    return await userService.loginWithOAuth(user);
+    return await userService.loginWithOAuth(user, token);
   }
 );
