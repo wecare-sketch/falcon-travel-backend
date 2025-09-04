@@ -102,6 +102,7 @@ const userService = {
       id: user.id,
       email: user.email,
       role: user.role,
+      name: user.fullName,
     };
 
     const jwtToken = jwt.sign(payload, process.env.JWT_SECRET_KEY!, {
@@ -111,7 +112,12 @@ const userService = {
   },
 
   loginWithOAuth: async (user: User, token?: string) => {
-    const payload = { id: user.id, email: user.email, role: user.role };
+    const payload = {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      name: user.fullName,
+    };
     const jwtToken = jwt.sign(payload, process.env.JWT_SECRET_KEY!, {
       expiresIn: process.env.JWT_EXPIRY || "7d",
     } as SignOptions);
