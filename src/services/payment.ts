@@ -305,6 +305,8 @@ const paymentService = {
       const payerRole = (meta.payerRole as string) || "";
       const purpose = (meta.paymentPurpose as string) || "";
 
+      console.log("metadata payer: ", meta);
+
       if (payerRole === "host" && purpose === "final_remaining") {
         await paymentService.processFinalHostPayment(
           transaction.user!.email,

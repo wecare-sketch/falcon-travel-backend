@@ -50,6 +50,14 @@ const eventService = {
     )
       throw new Error("amount cannot be less than 0");
 
+    const depositAmount = Math.floor(
+      event.paymentDetails.totalAmount - event.paymentDetails.pendingAmount
+    );
+
+    if (depositAmount < 0) {
+      throw new Error("Invalid amount entered");
+    }
+
     const slug = generateSlug(event.eventDetails.clientName);
 
     const imageUrl = await mediaHandler(
@@ -61,10 +69,6 @@ const eventService = {
         resource_type: "image",
         allowed_formats: ["jpg", "jpeg", "png", "webp"],
       }
-    );
-
-    const depositAmount = Math.floor(
-      event.paymentDetails.totalAmount - event.paymentDetails.pendingAmount
     );
 
     const newEvent = EventRepository.create({
@@ -198,9 +202,20 @@ const eventService = {
       throw new Error("Request does not exist!");
     }
 
+    if (
+      paymentDetails.equityDivision < 0 ||
+      paymentDetails.totalAmount < 0 ||
+      paymentDetails.pendingAmount < 0
+    )
+      throw new Error("amount cannot be less than 0");
+
     const depositAmount = Math.floor(
       paymentDetails.totalAmount - paymentDetails.pendingAmount
     );
+
+    if (depositAmount < 0) {
+      throw new Error("Invalid amount entered");
+    }
 
     const newEvent = EventRepository.create({
       name: requestFound.name,
@@ -269,6 +284,22 @@ const eventService = {
       throw new Error("This Event cannot be Updated!");
     }
 
+    if (
+      eventObject.paymentDetails.equityDivision < 0 ||
+      eventObject.paymentDetails.totalAmount < 0 ||
+      eventObject.paymentDetails.pendingAmount < 0
+    )
+      throw new Error("amount cannot be less than 0");
+
+    const depositAmount = Math.floor(
+      eventObject.paymentDetails.totalAmount -
+        eventObject.paymentDetails.pendingAmount
+    );
+
+    if (depositAmount < 0) {
+      throw new Error("Invalid amount entered");
+    }
+
     const now = new Date();
     const createdAt = new Date(eventFound.createdAt);
     const launchBuffer = Number(process.env.PRE_LAUNCH_PERIOD) || 24;
@@ -279,12 +310,7 @@ const eventService = {
       throw new Error("Event has already been locked. You can't proceed.");
     }
 
-    const depositAmount = Math.floor(
-      eventObject.paymentDetails.totalAmount -
-        eventObject.paymentDetails.pendingAmount
-    );
-
-    eventFound.name = eventObject.eventDetails.name;
+    if (depositAmount) eventFound.name = eventObject.eventDetails.name;
     eventFound.eventType = eventObject.eventDetails.eventType;
     eventFound.clientName = eventObject.eventDetails.clientName;
     eventFound.phoneNumber = eventObject.eventDetails.phoneNumber;
