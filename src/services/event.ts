@@ -159,13 +159,13 @@ const eventService = {
     }
 
     const inviteToken = nanoid(10);
-    const expiryDays = Number(process.env.INVITE_EXPIRY) || 3;
+    // const expiryDays = Number(process.env.INVITE_EXPIRY) || 3;
 
     const tokenGenerated = InviteTokenRepository.create({
       inviteToken: inviteToken,
       hostEmail: host,
       event: eventFound,
-      expiresAt: new Date(Date.now() + expiryDays * 24 * 60 * 60 * 1000),
+      // expiresAt: new Date(Date.now() + expiryDays * 24 * 60 * 60 * 1000),
     });
 
     await InviteTokenRepository.save(tokenGenerated);

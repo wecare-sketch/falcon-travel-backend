@@ -452,7 +452,7 @@ const userService = {
     const now = new Date();
 
     const inviteFound = await InviteRepository.findOne({
-      where: { inviteToken: inviteToken, expiresAt: MoreThan(now) },
+      where: { inviteToken: inviteToken },
       relations: ["event"],
     });
 
