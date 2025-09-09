@@ -26,10 +26,10 @@ export class Transaction {
   @Column({ type: "varchar", length: 255, nullable: true })
   paymentMethod?: string;
 
-  @Column({ default: 0 })
+  @Column({ type: "integer", default: 0 })
   amountIntended?: number;
 
-  @Column({ default: 0 })
+  @Column({ type: "integer", default: 0 })
   amountReceived?: number;
 
   @CreateDateColumn()

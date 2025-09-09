@@ -1,8 +1,8 @@
 import { InvoicePayload } from "../types/payment";
 
-const formatMoney = (n: number) =>
+const formatMoney = (cents: number) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(
-    n
+    (cents ?? 0) / 100
   );
 
 const formatDateTime = (d?: Date | string) =>
@@ -29,7 +29,8 @@ export function buildInvoiceHTML(data: InvoicePayload): string {
         Phone: ${data.event.phoneNumber}<br/>
         Pickup: ${formatDateTime(data.event.pickupDate)}<br/>
         Vehicle: ${data.event.vehicle} • ${data.event.hoursReserved}h<br/>
-        Location: ${data.event.location}<br/>
+        Pickup: ${data.event.pickup}<br/>
+        Dropoff: ${data.event.dropOff}<br/>
         Host: ${data.event.host ?? "—"}
       </div>
     </div>

@@ -87,7 +87,8 @@ const eventService = {
       clientName: event.eventDetails.clientName,
       phoneNumber: event.eventDetails.phoneNumber,
       pickupDate: event.eventDetails.pickupDate,
-      location: event.eventDetails.location,
+      pickup: event.eventDetails.pickup,
+      dropOff: event.eventDetails.dropOff,
       stops: event.eventDetails.stops,
       vehicle: event.vehicleInfo.vehicleName,
       passengerCount: event.vehicleInfo.numberOfPassengers,
@@ -242,7 +243,8 @@ const eventService = {
       paymentStatus: updatedStatus,
       phoneNumber: requestFound.phoneNumber,
       pickupDate: requestFound.pickupDate,
-      location: requestFound.location,
+      pickup: requestFound.pickup,
+      dropOff: requestFound.dropOff,
       stops: requestFound.stops,
       vehicle: requestFound.vehicle,
       passengerCount: requestFound.passengerCount,
@@ -337,7 +339,8 @@ const eventService = {
     eventFound.clientName = eventObject.eventDetails.clientName;
     eventFound.phoneNumber = eventObject.eventDetails.phoneNumber;
     eventFound.pickupDate = eventObject.eventDetails.pickupDate;
-    eventFound.location = eventObject.eventDetails.location;
+    eventFound.pickup = eventObject.eventDetails.pickup;
+    eventFound.dropOff = eventObject.eventDetails.dropOff;
     eventFound.vehicle = eventObject.vehicleInfo.vehicleName;
     eventFound.passengerCount = eventObject.vehicleInfo.numberOfPassengers;
     eventFound.hoursReserved = eventObject.vehicleInfo.hoursReserved;
@@ -427,7 +430,8 @@ const eventService = {
     requestFound.clientName = eventObject.eventDetails.clientName;
     requestFound.phoneNumber = eventObject.eventDetails.phoneNumber;
     requestFound.pickupDate = eventObject.eventDetails.pickupDate;
-    requestFound.location = eventObject.eventDetails.location;
+    requestFound.pickup = eventObject.eventDetails.pickup;
+    requestFound.dropOff = eventObject.eventDetails.dropOff;
     requestFound.vehicle = eventObject.vehicleInfo.vehicleName;
     requestFound.passengerCount = eventObject.vehicleInfo.numberOfPassengers;
     requestFound.hoursReserved = eventObject.vehicleInfo.hoursReserved;
@@ -592,7 +596,8 @@ const eventService = {
       },
 
       routeDetails: {
-        location: updatedEvent.location,
+        pickup: updatedEvent.pickup,
+        dropOff: updatedEvent.dropOff,
         route: updatedEvent.stops ?? [],
       },
 
@@ -639,7 +644,8 @@ const eventService = {
         clientName: eventRecord.clientName,
         phoneNumber: eventRecord.phoneNumber,
         pickupDate: eventRecord.pickupDate,
-        location: eventRecord.location,
+        pickup: eventRecord.pickup,
+        dropOff: eventRecord.dropOff,
         vehicle: eventRecord.vehicle,
         hoursReserved: eventRecord.hoursReserved,
         host: eventRecord.host ?? undefined,

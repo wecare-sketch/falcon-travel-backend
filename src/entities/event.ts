@@ -42,7 +42,10 @@ export class Event {
   pickupDate!: string;
 
   @Column({ type: "varchar", length: 255 })
-  location!: string;
+  pickup!: string;
+
+  @Column({ type: "varchar", length: 255 })
+  dropOff!: string;
 
   @Column({ type: "jsonb" })
   stops!: string[];
@@ -50,19 +53,19 @@ export class Event {
   @Column({ type: "varchar", length: 255 })
   vehicle!: string;
 
-  @Column({ type: "int" })
+  @Column({ type: "integer" })
   totalAmount!: number;
 
-  @Column({ type: "int", nullable: true })
+  @Column({ type: "integer", nullable: true })
   initialEquity!: number;
 
-  @Column({ type: "int" })
+  @Column({ type: "integer" })
   passengerCount!: number;
 
-  @Column({ type: "int" })
+  @Column({ type: "integer" })
   pendingAmount!: number;
 
-  @Column({ type: "int" })
+  @Column({ type: "integer" })
   depositAmount!: number;
 
   @Column({ type: "int" })

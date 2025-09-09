@@ -10,6 +10,7 @@ import { EventType, notificationType, PaymentStatus } from "../constants/enums";
 import { Event } from "../entities/event";
 import { EventParticipant } from "../entities/eventParticipant";
 import { ParticipantInvoice } from "../types/payment";
+import { fmtUSD } from "../utils/moneyHandler";
 
 const TransactionRepository = AppDataSource.getRepository(Transaction);
 const EventRepository = AppDataSource.getRepository(Event);
@@ -18,8 +19,8 @@ const EventParticipantRepository =
 
 const paymentService = {
   // Accepts amount in DOLLARS
-  payThruStripe: async (amount: number, slug: string, email: string) => {
-    if (!Number.isFinite(amount) || amount <= 0) {
+  payThruStripe: async (amountInCents: number, slug: string, email: string) => {
+    if (!Number.isInteger(amountInCents) || amountInCents <= 0) {
       throw new Error("Invalid Amount!");
     }
 
@@ -39,7 +40,11 @@ const paymentService = {
     }
 
     // Stripe needs cents
-    const amountInCents = Math.round(amount * 100);
+    // const amountInCents = Math.round(amount * 100);
+
+      if (amountInCents > event.pendingAmount) {
+    throw new Error("Amount exceeds remaining balance");
+  }
 
     const meta = {
       eventSlug: slug,
@@ -72,10 +77,10 @@ const paymentService = {
     });
 
     console.log("session", session);
-    // Store dollars in our DB for consistency
+    // Store Cents in our DB for consistency
     const newTransaction = TransactionRepository.create({
       paymentID: session.id,
-      amountIntended: Math.trunc(amount),
+      amountIntended: amountInCents,
       currency: "usd",
       status: PaymentStatus.PENDING,
       user,
@@ -108,8 +113,8 @@ const paymentService = {
 
     // Stripe needs cents
 
-    const remainingAmount = event.pendingAmount;
-    const amountInCents = Math.round(remainingAmount * 100);
+    // const remainingAmount = event.pendingAmount;
+    const amountInCents = event.pendingAmount;
 
     const meta = {
       eventSlug: slug,
@@ -142,10 +147,10 @@ const paymentService = {
     });
 
     // console.log("session", session);
-    // Store dollars in our DB for consistency
+    // Store cents in our DB for consistency
     const newTransaction = TransactionRepository.create({
       paymentID: session.id,
-      amountIntended: Math.trunc(remainingAmount),
+      amountIntended: amountInCents,
       currency: "usd",
       status: PaymentStatus.PENDING,
       user,
@@ -274,7 +279,7 @@ const paymentService = {
     }
     if (transaction.status === status) return;
 
-    let amountReceivedDollars = 0;
+    let amountReceivedCents = 0;
     let brand: string | undefined;
 
     // Prefer reading amounts/brand from the underlying PaymentIntent
@@ -283,7 +288,7 @@ const paymentService = {
       const pi = await stripe.paymentIntents.retrieve(piId, {
         expand: ["payment_method"],
       });
-      amountReceivedDollars = Math.trunc((pi.amount_received ?? 0) / 100);
+      amountReceivedCents = pi.amount_received ?? 0;
 
       const pm = pi.payment_method as Stripe.PaymentMethod | null;
       if (pm && pm.type === "card") {
@@ -291,11 +296,11 @@ const paymentService = {
       }
     } else if (session.amount_total != null) {
       // Fallback if PI isn’t present (uncommon)
-      amountReceivedDollars = Math.trunc((session.amount_total ?? 0) / 100);
+      amountReceivedCents = session.amount_total ?? 0;
     }
 
     transaction.status = status;
-    transaction.amountReceived = amountReceivedDollars;
+    transaction.amountReceived = amountReceivedCents;
     transaction.paymentMethod = brand;
 
     await TransactionRepository.save(transaction);
@@ -311,19 +316,19 @@ const paymentService = {
         await paymentService.processFinalHostPayment(
           transaction.user!.email,
           transaction.event.slug,
-          amountReceivedDollars
+          amountReceivedCents
         );
       } else {
         await paymentService.processPayment(
           transaction.user!.email,
-          amountReceivedDollars,
+          amountReceivedCents,
           transaction.event.slug
         );
       }
 
       const message = `${
         transaction.user?.email ?? "A user"
-      } has paid $${amountReceivedDollars} to the event (${
+      } has paid $${fmtUSD(amountReceivedCents)} to the event (${
         transaction.event.name
       })`;
       const notification: NotificationInputDts = {

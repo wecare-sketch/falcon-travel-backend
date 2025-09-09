@@ -18,13 +18,13 @@ export class Invoice {
   @ManyToOne(() => Event, (ev) => ev.transactions, { onDelete: "CASCADE" })
   event!: Event;
 
-  @Column({ type: "int" })
+  @Column({ type: "integer" })
   amount!: number;
 
-  @Column({ type: "int" })
+  @Column({ type: "integer" })
   paid!: number;
 
-  @Column({ type: "int" })
+  @Column({ type: "integer" })
   due!: number;
 
   @Column({ type: "varchar", nullable: true })

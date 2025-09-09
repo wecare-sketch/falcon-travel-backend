@@ -22,10 +22,10 @@ export class EventParticipant {
   @Column({ type: "varchar", length: 255 })
   email!: string;
 
-  @Column({ type: "int" })
+  @Column({ type: "integer", default: 0 })
   equityAmount!: number;
 
-  @Column({ type: "int", default: 0 })
+  @Column({ type: "integer", default: 0 })
   depositedAmount!: number;
 
   @Column({
