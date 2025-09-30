@@ -27,8 +27,8 @@ export class InviteToken {
   @Column({ type: "int", default: 0 })
   registered!: number;
 
-  @Column({ type: "timestamp" })
-  expiresAt!: Date;
+  @Column({ type: "timestamp", nullable: true, default: null })
+  expiresAt?: Date | null;
 
   @CreateDateColumn()
   createdAt!: Date;

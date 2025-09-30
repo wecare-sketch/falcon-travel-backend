@@ -12,7 +12,7 @@ import { PaymentStatus } from "../constants/enums";
 
 export const payThruStripe = errorHandler(
   async (req: AuthenticatedRequest, res: Response) => {
-    const { amount } = req.body;
+    const { amount, paidFor } = req.body;
 
     const user = req.user!;
 
@@ -21,7 +21,8 @@ export const payThruStripe = errorHandler(
     const result = await paymentService.payThruStripe(
       amount,
       event,
-      user.email
+      user.email,
+      paidFor,
     );
 
     return res.json(result);

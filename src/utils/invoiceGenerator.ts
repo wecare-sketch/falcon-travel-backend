@@ -29,7 +29,8 @@ export function buildInvoiceHTML(data: InvoicePayload): string {
         Phone: ${data.event.phoneNumber}<br/>
         Pickup: ${formatDateTime(data.event.pickupDate)}<br/>
         Vehicle: ${data.event.vehicle} • ${data.event.hoursReserved}h<br/>
-        Location: ${data.event.location}<br/>
+        Pickup Location: ${data.event.pickupLocation}<br/>
+        DropOff Location: ${data.event.dropOffLocation}<br/>
         Host: ${data.event.host ?? "—"}
       </div>
     </div>

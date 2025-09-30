@@ -23,7 +23,8 @@ export type InvoicePayload = {
     clientName: string;
     phoneNumber: string;
     pickupDate: string | Date;
-    location: string;
+    pickupLocation: string;
+    dropOffLocation: string;
     vehicle: string;
     hoursReserved: number;
     host?: string;
