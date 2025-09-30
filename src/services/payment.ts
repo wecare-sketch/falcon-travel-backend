@@ -18,7 +18,12 @@ const EventParticipantRepository =
 
 const paymentService = {
   // Accepts amount in DOLLARS
-  payThruStripe: async (amount: number, slug: string, email: string) => {
+  payThruStripe: async (
+    amount: number,
+    slug: string,
+    email: string,
+    paidFor: number
+  ) => {
     if (!Number.isFinite(amount) || amount <= 0) {
       throw new Error("Invalid Amount!");
     }
@@ -38,6 +43,25 @@ const paymentService = {
       throw new Error("Unable to process this payment");
     }
 
+    const perHeadShare = Math.round(eventParticipant.equityAmount ?? 0);
+    // if (perHeadShare <= 0) {
+    //   throw new Error("Participant share is not configured");
+    // }
+
+    if (perHeadShare > 0) {
+      let expected = perHeadShare * paidFor; // whole dollars
+
+      if (amount !== expected) {
+        throw new Error("Amount mismatch");
+      }
+    }
+
+    const remaining = Math.max(0, Math.round(event.pendingAmount ?? 0));
+
+    if (amount > remaining) {
+      throw new Error("Amount exceeds event remaining");
+    }
+
     // Stripe needs cents
     const amountInCents = Math.round(amount * 100);
 
@@ -47,8 +71,9 @@ const paymentService = {
       payerEmail: email,
       payerRole: "participant" as const,
       paymentPurpose: "participant_share" as const,
-      userId: user.id,
-      eventId: event.id,
+      userId: String(user.id),
+      eventId: String(event.id),
+      paidFor: String(paidFor),
     };
 
     const session = await stripe.checkout.sessions.create({
@@ -283,7 +308,7 @@ const paymentService = {
       const pi = await stripe.paymentIntents.retrieve(piId, {
         expand: ["payment_method"],
       });
-      amountReceivedDollars = Math.trunc((pi.amount_received ?? 0) / 100);
+      amountReceivedDollars = Math.round((pi.amount_received ?? 0) / 100);
 
       const pm = pi.payment_method as Stripe.PaymentMethod | null;
       if (pm && pm.type === "card") {
@@ -291,7 +316,7 @@ const paymentService = {
       }
     } else if (session.amount_total != null) {
       // Fallback if PI isn’t present (uncommon)
-      amountReceivedDollars = Math.trunc((session.amount_total ?? 0) / 100);
+      amountReceivedDollars = Math.round((session.amount_total ?? 0) / 100);
     }
 
     transaction.status = status;
@@ -304,6 +329,7 @@ const paymentService = {
       const meta = session.metadata || {};
       const payerRole = (meta.payerRole as string) || "";
       const purpose = (meta.paymentPurpose as string) || "";
+      const paidFor = (meta.paidFor as string) || "1";
 
       // console.log("metadata payer: ", meta);
 
@@ -317,7 +343,8 @@ const paymentService = {
         await paymentService.processPayment(
           transaction.user!.email,
           amountReceivedDollars,
-          transaction.event.slug
+          transaction.event.slug,
+          paidFor
         );
       }
 
@@ -359,7 +386,12 @@ const paymentService = {
     }
   },
 
-  processPayment: async (email: string, amount: number, eventSlug: string) => {
+  processPayment: async (
+    email: string,
+    amount: number,
+    eventSlug: string,
+    paidFor: string
+  ) => {
     const event = await EventRepository.findOne({ where: { slug: eventSlug } });
     const eventParticipant = await EventParticipantRepository.findOne({
       where: { email, event: { slug: eventSlug } },
@@ -368,8 +400,17 @@ const paymentService = {
     if (!event) throw new Error("Event not Found!");
     if (!eventParticipant) throw new Error("Participant not Found!");
 
-    eventParticipant.depositedAmount += amount;
-    eventParticipant.equityAmount = amount;
+    // Track totals
+    eventParticipant.depositedAmount =
+      (eventParticipant.depositedAmount ?? 0) + Math.round(amount);
+
+    // Your rule: equity represents what they ultimately paid (can be > one share)
+    eventParticipant.equityAmount = Math.round(amount);
+
+    // Record how many heads this payment covered
+    eventParticipant.paidFor = Math.round(parseInt(paidFor));
+
+    // Mark the participant paid after this payment
     eventParticipant.paymentStatus = PaymentStatus.PAID;
 
     await EventParticipantRepository.save(eventParticipant);

@@ -45,6 +45,8 @@ interface EventDetails {
   pickupTime: string;
   location: string;
   stops: string[];
+  pickupLocation: string;
+  dropOffLocation: string;
 }
 
 interface VehicleInfo {
@@ -68,7 +70,9 @@ export interface SharedEventResponse {
     phone: string;
   };
   routeDetails: {
-    location: string;
+    // location: string;
+    pickupLocation: string;
+    dropOffLocation: string;
     route: string[];
   };
   vehicleInfo: {

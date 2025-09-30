@@ -22,6 +22,9 @@ export class EventParticipant {
   @Column({ type: "varchar", length: 255 })
   email!: string;
 
+  @Column({ type: "int", default: 0 })
+  paidFor!: number;
+
   @Column({ type: "int" })
   equityAmount!: number;
 

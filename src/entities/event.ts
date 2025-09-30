@@ -41,11 +41,17 @@ export class Event {
   @Column({ type: "date" })
   pickupDate!: string;
 
-  @Column({ type: "varchar", length: 255 })
-  location!: string;
+  // @Column({ type: "varchar", length: 255 })
+  // location!: string;
 
   @Column({ type: "jsonb" })
   stops!: string[];
+
+  @Column({ type: "varchar", length: 255, nullable: true, default: null })
+  pickupLocation?: string;
+
+  @Column({ type: "varchar", length: 255, nullable: true, default: null })
+  dropOffLocation?: string;
 
   @Column({ type: "varchar", length: 255 })
   vehicle!: string;
@@ -83,8 +89,8 @@ export class Event {
   @UpdateDateColumn()
   updatedAt!: Date;
 
-  @Column({ type: "timestamp", nullable: true })
-  expiresAt?: Date;
+  @Column({ type: "timestamp", nullable: true, default: null })
+  expiresAt?: Date | null;
 
   @Column({ type: "varchar", length: 255, nullable: true })
   host?: string;
