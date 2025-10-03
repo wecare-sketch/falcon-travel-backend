@@ -74,7 +74,9 @@ export class EventRequest {
   @Column({ type: "enum", enum: PaymentStatus, default: PaymentStatus.PENDING })
   status!: PaymentStatus;
 
-  @ManyToOne(() => User, (user) => user.eventRequests)
+  @ManyToOne(() => User, (user) => user.eventRequests, {
+    onDelete: "CASCADE",
+  })
   @JoinColumn({ name: "userId" })
   user!: User;
 

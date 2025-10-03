@@ -376,7 +376,13 @@ const eventService = {
       notificationService.send(notification, participants);
     }
 
-    return { message: "success", data: newEvent };
+    const invite = await InviteTokenRepository.findOne({
+      where: { event: { slug: newEvent.slug } },
+    });
+
+    const url = `${process.env.CLIENT_URL}/${invite?.inviteToken}`;
+
+    return { message: "success", data: { event: newEvent, url: url } };
   },
 
   checkAndUpdatePaymentInfo: async (eventObject: AddEventDts, event: Event) => {

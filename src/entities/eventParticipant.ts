@@ -16,7 +16,9 @@ export class EventParticipant {
   @PrimaryGeneratedColumn()
   id!: number;
 
-  @ManyToOne(() => User, (user) => user.participantHistory)
+  @ManyToOne(() => User, (user) => user.participantHistory, {
+    onDelete: "CASCADE",
+  })
   user?: User;
 
   @Column({ type: "varchar", length: 255 })

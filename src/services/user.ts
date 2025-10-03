@@ -28,10 +28,12 @@ import notificationService from "./notification";
 import { NotificationInputDts } from "../types/notification";
 import eventService from "./event";
 import { EventMessage } from "../entities/eventMessage";
+// import { VerificationToken } from "../entities/verificationToken";
 
 const UserRepository = AppDataSource.getRepository(User);
 const EventRepository = AppDataSource.getRepository(Event);
 const InviteRepository = AppDataSource.getRepository(InviteToken);
+// const VerificationRepository = AppDataSource.getRepository(VerificationToken);
 const FeedbackRepository = AppDataSource.getRepository(EventFeedback);
 const RequestRepository = AppDataSource.getRepository(EventRequest);
 const MediaRepository = AppDataSource.getRepository(EventMedia);
@@ -238,6 +240,65 @@ const userService = {
 
     return { message: "success", data: jwtToken };
   },
+
+  // requestVerification: async (email: string) => {
+  //   const userFound = await userService.findUserWithEmail(email);
+
+  //   const now = new Date();
+  //   const requestBuffer = Number(process.env.OTP_REQUEST_BUFFER) || 1;
+  //   const resetBuffer = Number(process.env.OTP_RESET_BUFFER) || 2;
+  //   const limit = 5;
+
+  //   const requestTime = new Date(now.getTime() - requestBuffer * 60 * 1000);
+  //   const recentToken = await VerificationRepository.findOne({
+  //     where: {
+  //       email: userFound.email,
+  //       createdAt: MoreThan(requestTime),
+  //     },
+  //   });
+
+  //   const resetTime = new Date(now.getTime() - resetBuffer * 60 * 1000);
+  //   const requestCount = await VerificationRepository.count({
+  //     where: {
+  //       email: userFound.email,
+  //       createdAt: MoreThan(resetTime),
+  //     },
+  //   });
+
+  //   if (requestCount >= limit) {
+  //     throw new Error(
+  //       `Too many Verification requests. Try again after ${resetBuffer} minutes.`
+  //     );
+  //   }
+
+  //   if (recentToken?.verified) {
+  //     return { message: "Already Verified!", data: {} };
+  //   }
+
+  //   const totalCount = await VerificationRepository.count({
+  //     where: { email: userFound.email },
+  //   });
+
+  //   if (totalCount >= 10) await VerificationRepository.delete({ email: email });
+
+  //   const token = generateSecureVerification();
+
+  //   const verificationToken = VerificationRepository.create({
+  //     email: email,
+  //     token: token,
+  //   });
+
+  //   await VerificationRepository.save(verificationToken);
+
+  //   await sendVerificaitonMail(userFound.email, verificationToken.token).catch(
+  //     async (err) => {
+  //       await VerificationRepository.delete({ token });
+  //       throw new Error("Failed to send OTP email");
+  //     }
+  //   );
+
+  //   return { message: "Verification sent", data: { token: token } };
+  // },
 
   resetPassword: async (newPassword: string, user: JwtPayload) => {
     const userFound = await userService.findUserWithEmail(user.email);
