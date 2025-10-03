@@ -41,7 +41,9 @@ export class EventFeedback {
   @Column({ type: "float" })
   averageRating!: number;
 
-  @OneToOne(() => User)
+  @OneToOne(() => User, {
+    onDelete: "CASCADE",
+  })
   @JoinColumn({ name: "userId" })
   user!: User;
 

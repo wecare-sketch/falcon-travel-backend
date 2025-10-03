@@ -19,7 +19,9 @@ export class EventMessage {
   @Column({ type: "varchar", length: 255 })
   message!: string;
 
-  @ManyToOne(() => Event, (event) => event.messages)
+  @ManyToOne(() => Event, (event) => event.messages, {
+    onDelete: "CASCADE",
+  })
   event!: Event;
 
   @ManyToOne(() => User)

@@ -13,6 +13,7 @@ import { Notification } from "../entities/notifications";
 import { Transaction } from "../entities/transactions";
 import { EventMessage } from "../entities/eventMessage";
 import { Invoice } from "../entities/invoice";
+// import { VerificationToken } from "../entities/verificationToken";
 
 const isUsingUrl = !!process.env.DATABASE_URL;
 
@@ -30,7 +31,7 @@ export const AppDataSource = new DataSource({
         password: process.env.DB_PASSWORD,
         database: process.env.DB_NAME,
       }),
-  synchronize: false,
+  synchronize: true,
   logging: false,
   entities: [
     User,
@@ -45,6 +46,7 @@ export const AppDataSource = new DataSource({
     Notification,
     Transaction,
     Invoice,
+    // VerificationToken,
   ],
   migrations: [__dirname + "/../migrations/*.{ts,js}"],
   subscribers: [],

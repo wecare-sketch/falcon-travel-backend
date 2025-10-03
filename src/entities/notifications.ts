@@ -27,18 +27,18 @@ export class Notification {
   @Column({ type: "boolean", default: false })
   read!: boolean;
 
-  @ManyToOne(() => User, (user) => user.notifications)
+  @ManyToOne(() => User, (user) => user.notifications, {
+    onDelete: "CASCADE",
+  })
   user!: User;
 
-  @ManyToOne(() => Event, (event) => event.notifications, { nullable: true })
+  @ManyToOne(() => Event, (event) => event.notifications, {
+    nullable: true,
+    onDelete: "CASCADE",
+  })
   event!: Event;
 
-  @ManyToOne(
-    () => EventRequest,
-    { nullable: true,
-      onDelete: "CASCADE",
-    }
-  )
+  @ManyToOne(() => EventRequest, { nullable: true, onDelete: "CASCADE" })
   request?: EventRequest;
 
   @CreateDateColumn()

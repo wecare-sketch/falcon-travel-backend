@@ -38,9 +38,13 @@ export class Transaction {
   @UpdateDateColumn()
   paidAt!: Date;
 
-  @ManyToOne(() => Event, (event) => event.transactions)
+  @ManyToOne(() => Event, (event) => event.transactions, {
+    onDelete: "CASCADE",
+  })
   event!: Event;
 
-  @ManyToOne(() => User, (user) => user.transactions)
+  @ManyToOne(() => User, (user) => user.transactions, {
+    onDelete: "CASCADE",
+  })
   user?: User;
 }
