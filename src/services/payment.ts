@@ -48,11 +48,16 @@ const paymentService = {
     //   throw new Error("Participant share is not configured");
     // }
 
-    if (perHeadShare > 0) {
-      let expected = perHeadShare * paidFor; // whole dollars
+    if (perHeadShare > 0 && paidFor > 0) {
+      const expected = perHeadShare * paidFor;
 
-      if (amount !== expected) {
-        throw new Error("Amount mismatch");
+      // Allow amounts up to expected (for edited/custom amounts)
+      if (amount > expected) {
+        throw new Error(`Amount cannot exceed $${expected}`);
+      }
+
+      if (amount < 0.5) {
+        throw new Error("Amount must be at least $0.50");
       }
     }
 

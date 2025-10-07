@@ -54,7 +54,7 @@ export function ensureDataSource(): Promise<void> {
   const p = AppDataSource.initialize()
     .then(async () => {
       console.log("Database connected");
-      await AppDataSource.runMigrations(); // 👈 This runs pending migrations
+      // await AppDataSource.runMigrations(); // 👈 This runs pending migrations
       await createAdminUser();
     })
     .catch((err) => {
