@@ -20,14 +20,15 @@ import { globalLimiter, otpLimiter } from "./middlewares/rateLimiter";
 
 // -----------------------------
 const app = express();
-const isProd = process.env.NODE_ENV === "production" || process.env.VERCEL === "1";
+const isProd =
+  process.env.NODE_ENV === "production" || process.env.VERCEL === "1";
 app.set("trust proxy", isProd ? 1 : "loopback");
 
 // CORS
 app.use(
   cors({
     origin: "*",
-    methods: ["GET", "POST", "PATCH" ,"PUT", "DELETE", "OPTIONS"],
+    methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: false, // must be false when using "*"
     optionsSuccessStatus: 200,
@@ -35,14 +36,19 @@ app.use(
 );
 
 // ⛔️ Special raw body for Stripe webhook (must come before express.json)
-app.use("/api/webhook", express.raw({ type: "application/json" }), webhookHandler);
+app.use(
+  "/api/webhook",
+  express.raw({ type: "application/json" }),
+  webhookHandler
+);
 
 // Global middleware
 app.use(express.json());
 app.use(morgan("dev"));
 
 // DataSource init
-let dsInitPromise: Promise<void> | null = (globalThis as any).__DS_INIT_PROMISE || null;
+let dsInitPromise: Promise<void> | null =
+  (globalThis as any).__DS_INIT_PROMISE || null;
 function setGlobalInitPromise(p: Promise<void> | null) {
   (globalThis as any).__DS_INIT_PROMISE = p ?? null;
   dsInitPromise = p ?? null;
@@ -54,7 +60,7 @@ export function ensureDataSource(): Promise<void> {
   const p = AppDataSource.initialize()
     .then(async () => {
       console.log("Database connected");
-      // await AppDataSource.runMigrations(); // 👈 This runs pending migrations
+      await AppDataSource.runMigrations(); // 👈 This runs pending migrations
       await createAdminUser();
     })
     .catch((err) => {
